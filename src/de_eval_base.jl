@@ -50,11 +50,84 @@ end
 type TFun{Sym} 
 end
 
-result_type(::TFun{:+}, T::Type) = T
-result_type(::TFun{:-}, T::Type) = T
+macro def_uniop_result(s)
+	eval( :( result_type(::TFun{$s}, T::Type) = T ) )
+end
 
-result_type(::TFun{:+}, T1::Type, T2::Type) = promote_type(T1, T2)
-result_type(::TFun{:-}, T1::Type, T2::Type) = promote_type(T1, T2)
+macro def_binop_result(s)
+	eval( :( result_type(::TFun{$s}, T1::Type, T2::Type) = promote_type(T1, T2) ) )
+end
+
+macro def_triop_result(s)
+	eval( :( result_type(::TFun{$s}, T1::Type, T2::Type, T3::Type) = promote_type(T1, T2, T3) ) )
+end
+
+# arithmetic operators
+
+@def_uniop_result :+
+@def_uniop_result :-
+
+@def_binop_result :+
+@def_binop_result :-
+@def_binop_result :*
+@def_binop_result :/
+@def_binop_result :.+
+@def_binop_result :.-
+@def_binop_result :.*
+@def_binop_result :./
+
+@def_binop_result :min
+@def_binop_result :max
+@def_triop_result :clamp
+
+# elementary math functions
+
+@def_uniop_result :square
+@def_uniop_result :inv
+@def_uniop_result :sqrt
+@def_uniop_result :cbrt
+
+@def_binop_result :mod
+@def_binop_result :pow
+@def_binop_result :hypot
+
+@def_uniop_result :round
+@def_uniop_result :trunc
+@def_uniop_result :ceil
+@def_uniop_result :floor
+
+@def_uniop_result :exp
+@def_uniop_result :log
+@def_uniop_result :exp2
+@def_uniop_result :log2
+@def_uniop_result :log10
+@def_uniop_result :expm1
+@def_uniop_result :log1p
+
+@def_uniop_result :sin
+@def_uniop_result :cos
+@def_uniop_result :tan
+@def_uniop_result :asin
+@def_uniop_result :acos
+@def_uniop_result :atan
+@def_binop_result :atan2
+
+@def_uniop_result :sinh
+@def_uniop_result :cosh
+@def_uniop_result :tanh
+@def_uniop_result :qsinh
+@def_uniop_result :qcosh
+@def_uniop_result :qtanh
+
+# special functions
+
+@def_uniop_result :gamma
+@def_uniop_result :lgamma
+@def_uniop_result :digamma
+
+@def_uniop_result :erf
+@def_uniop_result :erfc
+
 
 
 ##########################################################################
