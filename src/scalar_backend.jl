@@ -93,6 +93,39 @@ function devec_generate_rhs{F,
 	(pre, kernel)
 end
 
+function devec_generate_ewise(lhs::Symbol, rhs::AbstractDeExpr)
+	@gensym i
+	rhs_pre, rhs_kernel = devec_generate_rhs(rhs, i)
+
+	quote
+		local n = length(($lhs))
+		$rhs_pre
+		for ($i) = 1 : n
+			($lhs)[($i)] = ($rhs_kernel)
+		end
+	end
+end
+
+
+function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeFunExpr{F,(A,)})
+	@gensym i
+	siz_infer = gen_size_inference(rhs.args[1])
+	rhs_pre, rhs_kernel = devec_generate_rhs(rhs.args[1], i)
+	
+	if F == (:sum)		
+		quote
+			local siz = ($siz_infer)
+			local n = prod(siz)
+			$rhs_pre
+			for ($i) = 1 : n
+				($lhs) += ($rhs_kernel)
+			end
+		end
+	else
+		error("Unsupported reduction function $fsym")
+	end
+end
+
 
 function de_generate(::ScalarContext, assign_ex::Expr)
 	@assert assign_ex.head == :(=)
@@ -100,22 +133,24 @@ function de_generate(::ScalarContext, assign_ex::Expr)
 	lhs = assign_ex.args[1]
 	rhs = de_wrap(assign_ex.args[2])
 	
+	et::Int = 1
+	
 	if isa(rhs, DeFunExpr)
 		nargs = length(rhs.args)
-		if !is_supported_ewise_fun(fsym(rhs), nargs)
-			error("$(fsym(rhs)) with $nargs arguments is not a supported ewise function.")			
+		if is_supported_ewise_fun(fsym(rhs), nargs)
+			et = 1		
+		elseif is_supported_reduc_fun(fsym(rhs), nargs)
+			et = 2
+		else
+			error("$(fsym(rhs)) with $nargs arguments is not a supported by DeExpr.")	
 		end
 	end
 	
-	@gensym i
-	rhs_pre, rhs_kernel = devec_generate_rhs(rhs, i)
-	
-	quote
-		local n = length(($lhs))
-		$rhs_pre
-		for ($i) = 1 : n
-			($lhs)[($i)] = ($rhs_kernel)
-		end
+	if et == 1 # element-wise transformation
+		devec_generate_ewise(lhs, rhs)
+		
+	elseif et == 2 # full reduction
+		devec_generate_fullreduc(lhs, rhs)
 	end
 end
 

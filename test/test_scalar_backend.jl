@@ -15,17 +15,24 @@ r2 = zeros(size(a))
 r3 = zeros(size(a))
 r4 = zeros(size(a))
 
+println("testing unary expression ...")
 @devec r1 = -a
 @test isequal(r1, -a)
 
+println("testing binary expression ...")
 @devec r2 = a .* b
 @test isequal(r2, a .* b)
 
+println("testing ternary expression ...")
 @devec r3 = +(a, b, c)
 @test isequal(r3, a + b + c)
 
+println("testing compound expression ...")
 @devec r4 = (a .* a + b .* b) - (a .* b .* c)
 rr4 = (a .* a + b .* b) - (a .* b .* c)
 @test isequal(r4, rr4)
 
-# @devec s = sum(b .* c)
+println("testing sum of binary expression ...")
+s = 0
+@devec s = sum(b .* c)
+@test s == dot(b, c)

@@ -50,8 +50,6 @@ end
 type TFun{Sym} 
 end
 
-_supported_ewise_funset = Set{(Symbol,Int)}()
-
 macro def_uniop_result(s)
 	eval( :( 
 		result_type(::TFun{$s}, T::Type) = T;
@@ -73,6 +71,7 @@ macro def_triop_result(s)
 	) )
 end
 
+_supported_ewise_funset = Set{(Symbol,Int)}()
 is_supported_ewise_fun(s::Symbol, nargs::Integer) = has(_supported_ewise_funset, (s, nargs))
 
 # arithmetic operators
@@ -141,6 +140,19 @@ is_supported_ewise_fun(s::Symbol, nargs::Integer) = has(_supported_ewise_funset,
 @def_uniop_result :erf
 @def_uniop_result :erfc
 
+# reduction functions
+
+_supported_reduc_funset = Set{(Symbol,Int)}()
+is_supported_reduc_fun(s::Symbol, nargs::Integer) = has(_supported_reduc_funset, (s, nargs))
+
+macro def_reductor(s)
+	eval( :( 
+		result_type(::TFun{$s}, T::Type) = T;
+		add!(_supported_reduc_funset, ($s, 1))
+	) )
+end
+
+@def_reductor :sum
 
 
 ##########################################################################
@@ -171,26 +183,31 @@ de_wrap(ex::Expr) = de_expr(
 )
 
 
-
 ##########################################################################
 #
-# 	test the type of an expression
+# 	shape inference
 #
 ##########################################################################
 
-abstract DeExprKind
+gen_size_inference(ex::DeNumber) = :( () )
+gen_size_inference(ex::DeTerminal) = :( size($(ex.sym)) )
 
-type ElementWiseMap <: DeExprKind end
-type FullReduce <: DeExprKind end
-type PartialReduce <: DeExprKind end	
+gen_size_inference{F,
+	A1<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,)}) = :( 
+		$(gen_size_inference(ex.args[1])) )
+	
+gen_size_inference{F,
+	A1<:AbstractDeExpr,
+	A2<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2)}) = :( 
+		promote_shape( 
+			$(gen_size_inference(ex.args[1])), 
+			$(gen_size_inference(ex.args[2])) ) )
 
-de_expr_kind(ex::AbstractDeExpr) = ElementWiseMap()
+gen_size_inference{F,
+	A1<:DeNumber,
+	A2<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2)}) = :( 
+		$(gen_size_inference(ex.args[2])) )
 
-# special cases
-
-de_expr_kind{A<:AbstractDeExpr}(::DeFunExpr{:sum, A}) = FullReduce()
-de_expr_kind{A<:AbstractDeExpr}(::DeFunExpr{:max, A}) = FullReduce()
-de_expr_kind{A<:AbstractDeExpr}(::DeFunExpr{:min, A}) = FullReduce()
 
 
 ##########################################################################
