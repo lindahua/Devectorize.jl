@@ -1,9 +1,9 @@
 
-# types to express delayed expressions
+##########################################################################
 #
-# The type system here basically follow Krys, but I change
-# the names to make it more consistent with Julia's
+# 	Types to express delayed expressions
 #
+##########################################################################
 
 abstract AbstractDeExpr
 
@@ -11,15 +11,21 @@ type DeNumber <: AbstractDeExpr
 	val::Number
 end
 
+pretty(t::DeNumber) = string(t.val)
+
 type DeTerminal <: AbstractDeExpr
 	arg::Symbol
 end
+
+pretty(t::DeTerminal) = string(t.arg)
 
 # generic delayed expression that may incorporate arbitrary number of args
 
 type DeExpr{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
 	args::Args
 end
+
+fsym{F,Args}(::DeExpr{F,Args}) = F
 
 # a convenient function to create DeExpr, so that people do not have 
 # to specify the type parameters of DeExpr
@@ -28,8 +34,18 @@ function de_expr{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
 	return DeExpr{f,Args}(args)
 end
 
+# generate a pretty string
+function pretty(ex::DeExpr)
+	pargs = join(map(pretty, ex.args), ", ")
+	"$(fsym(ex))($pargs)"
+end
 
-# functions to infer element-type of the result
+
+##########################################################################
+#
+# 	Result type inference
+#
+##########################################################################
 
 type TFun{Sym} 
 end
@@ -41,7 +57,11 @@ result_type(::TFun{:+}, T1::Type, T2::Type) = promote_type(T1, T2)
 result_type(::TFun{:-}, T1::Type, T2::Type) = promote_type(T1, T2)
 
 
-# functions to wrap AST to delayed expressions
+##########################################################################
+#
+# 	de_wrap: functions to wrap Expr to AST
+#
+##########################################################################
 
 de_wrap{T<:Number}(x::T) = DeNumber(x)
 de_wrap(s::Symbol) = DeTerminal(s)
@@ -65,18 +85,21 @@ de_wrap(ex::Expr) = de_expr(
 )
 
 
-# types to express evaluation contexts
+##########################################################################
 #
-# A context refers to a specific configuration of the back-end, which
-# can be scalar code, SIMD, CUDA, etc, or even hybrid of them.
+#   Types to express evaluation contexts
 #
-# Again, I organize types into a hierarchy, which may simplify later
-# implementation.
+# 	A context refers to a specific configuration of the back-end, 
+#	which can be scalar code, SIMD, CUDA, etc, or even hybrid of them.
 #
-# Here, most contexts are empty types. In practice, it is ok to have
-# some information contained in the context 
-# (e.g. the capability version of CUDA may be useful for code-gen)
-# 
+# 	I organize types into a hierarchy, which may simplify later
+# 	implementation.
+#
+# 	Here, most contexts are empty types. In practice, it is ok to have
+# 	some information contained in the context 
+# 	(e.g. the capability version of CUDA may be useful for code-gen)
+#
+##########################################################################
 
 abstract EvalContext
 
@@ -91,36 +114,4 @@ end
 
 type CUDAContext <: GPUContext
 end
-
-# context-aware code generation functions
-#
-# Krys used de_jl_eval, etc for this purpose.
-#
-# I think unifying the function name to de_generate,
-# and then dispatch the actual implementation
-# according to context might be a better approach.
-# This fits well with Julia's multi-dispatch
-# mechanism.
-#
-# Also, I think "generate" is more appropriate
-# than "eval" here, as such functions is to 
-# generate codes not to evaluate them
-#
-
-function de_generate(ctx::EvalContext, ex::Expr)
-	# returns the generated code in an appropriate way
-end
-
-# Finally, it is good to have a macro system to simplify
-# the coding.
-#
-# For normal users, they can simply rely on a default 
-# evaluation policy. However, advanced users may choose
-# a specific context to optimize their computation.
-#
-
-
-
-
-
 
