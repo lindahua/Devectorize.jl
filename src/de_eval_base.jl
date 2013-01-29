@@ -15,38 +15,6 @@ type DeTerminal <: AbstractDeExpr
 	arg::Symbol
 end
 
-# The purpose of function tags is to add a tag type as parameter in 
-# delayed expression, such that the delayed version of 1 + 2 and 1 - 2 
-# are of different types
-#
-# Also, a hierarchy of tags may simplify implementation -- some codes 
-# can work on a parent tag as if they apply to a family of functions, while 
-# others can be specialized
-#
-
-abstract FunTag
-
-abstract ArithmeticOpTag <: FunTag
-abstract MathFunTag <: FunTag
-
-type AddTag <: ArithmeticOpTag
-end
-
-type SubTag <: ArithmeticOpTag
-end
-
-type MulTag <: ArithmeticOpTag
-end
-
-type DivTag <: ArithmeticOpTag
-end
-
-type SinTag <: MathFunTag
-end
-
-type CosTag <: MathFunTag
-end
-
 # generic delayed expression that may incorporate arbitrary number of args
 
 type DeExpr{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
@@ -74,32 +42,6 @@ result_type(::SubTag, T1::Type, T2::Type) = promote_type(T1, T2)
 
 de_wrap{T<:Number}(x::T) = DeNumber(x)
 de_wrap(s::Symbol) = DeTerminal(s)
-
-
-# Note: the implementation of this function is quite tricky:
-# is there a good way to make it extensible, such that users
-# can register their own symbol-funtag mapping
-#
-# any thought?
-
-const de_symbol_map = (Symbol=>FunTag) [
-	(:+) => AddTag(),
-	(:-) => SubTag(),
-	(:.*) => MulTag(),
-	(:./) => DivTag(),
-	(:sin) => SinTag(),
-	(:cos) => CosTag()
-]
-
-function get_fun_tag(s::Symbol)
-	# returns a function-tag according to the symbol
-	
-	r = get(de_symbol_map, s, nothing)
-	if r == nothing
-		error("The symbol $s is not supported by DeExpr")
-	end
-	return r
-end
 
 # Any sane way to convert an array to a tuple ?
 function array_to_tuple(a)
