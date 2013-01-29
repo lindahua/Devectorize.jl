@@ -31,11 +31,14 @@ end
 
 # functions to infer element-type of the result
 
-result_type(::AddTag, T::Type) = T
-result_type(::SubTag, T::Type) = T
+type TFun{Sym} 
+end
 
-result_type(::AddTag, T1::Type, T2::Type) = promote_type(T1, T2)
-result_type(::SubTag, T1::Type, T2::Type) = promote_type(T1, T2)
+result_type(::TFun{:+}, T::Type) = T
+result_type(::TFun{:-}, T::Type) = T
+
+result_type(::TFun{:+}, T1::Type, T2::Type) = promote_type(T1, T2)
+result_type(::TFun{:-}, T1::Type, T2::Type) = promote_type(T1, T2)
 
 
 # functions to wrap AST to delayed expressions
