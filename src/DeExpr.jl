@@ -12,6 +12,7 @@ export
 	fsym,
 	pretty,
 	de_expr,
+	is_supported_ewise_fun,
 	
 	# core functions
 	de_wrap,

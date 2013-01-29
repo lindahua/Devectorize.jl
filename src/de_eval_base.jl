@@ -50,17 +50,30 @@ end
 type TFun{Sym} 
 end
 
+_supported_ewise_funset = Set{(Symbol,Int)}()
+
 macro def_uniop_result(s)
-	eval( :( result_type(::TFun{$s}, T::Type) = T ) )
+	eval( :( 
+		result_type(::TFun{$s}, T::Type) = T;
+		add!(_supported_ewise_funset, ($s, 1))
+	) )
 end
 
 macro def_binop_result(s)
-	eval( :( result_type(::TFun{$s}, T1::Type, T2::Type) = promote_type(T1, T2) ) )
+	eval( :( 
+		result_type(::TFun{$s}, T1::Type, T2::Type) = promote_type(T1, T2); 
+		add!(_supported_ewise_funset, ($s, 2))
+	) )
 end
 
 macro def_triop_result(s)
-	eval( :( result_type(::TFun{$s}, T1::Type, T2::Type, T3::Type) = promote_type(T1, T2, T3) ) )
+	eval( :( 
+		result_type(::TFun{$s}, T1::Type, T2::Type, T3::Type) = promote_type(T1, T2, T3);
+		add!(_supported_ewise_funset, ($s, 3))
+	) )
 end
+
+is_supported_ewise_fun(s::Symbol, nargs::Integer) = has(_supported_ewise_funset, (s, nargs))
 
 # arithmetic operators
 
@@ -69,12 +82,12 @@ end
 
 @def_binop_result :+
 @def_binop_result :-
-@def_binop_result :*
-@def_binop_result :/
 @def_binop_result :.+
 @def_binop_result :.-
 @def_binop_result :.*
 @def_binop_result :./
+
+@def_triop_result :+
 
 @def_binop_result :min
 @def_binop_result :max
@@ -156,6 +169,28 @@ de_wrap(ex::Expr) = de_expr(
 	ex.args[1], 
 	map(de_wrap, array_to_tuple(ex.args[2:]))
 )
+
+
+
+##########################################################################
+#
+# 	test the type of an expression
+#
+##########################################################################
+
+abstract DeExprKind
+
+type ElementWiseMap <: DeExprKind end
+type FullReduce <: DeExprKind end
+type PartialReduce <: DeExprKind end	
+
+de_expr_kind(ex::AbstractDeExpr) = ElementWiseMap()
+
+# special cases
+
+de_expr_kind{A<:AbstractDeExpr}(::DeFunExpr{:sum, A}) = FullReduce()
+de_expr_kind{A<:AbstractDeExpr}(::DeFunExpr{:max, A}) = FullReduce()
+de_expr_kind{A<:AbstractDeExpr}(::DeFunExpr{:min, A}) = FullReduce()
 
 
 ##########################################################################

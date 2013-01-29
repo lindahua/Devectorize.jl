@@ -100,6 +100,13 @@ function de_generate(::ScalarContext, assign_ex::Expr)
 	lhs = assign_ex.args[1]
 	rhs = de_wrap(assign_ex.args[2])
 	
+	if isa(rhs, DeFunExpr)
+		nargs = length(rhs.args)
+		if !is_supported_ewise_fun(fsym(rhs), nargs)
+			error("$(fsym(rhs)) with $nargs arguments is not a supported ewise function.")			
+		end
+	end
+	
 	@gensym i
 	rhs_pre, rhs_kernel = devec_generate_rhs(rhs, i)
 	

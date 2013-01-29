@@ -27,3 +27,5 @@ r4 = zeros(size(a))
 @devec r4 = (a .* a + b .* b) - (a .* b .* c)
 rr4 = (a .* a + b .* b) - (a .* b .* c)
 @test isequal(r4, rr4)
+
+# @devec s = sum(b .* c)
