@@ -14,28 +14,28 @@ end
 pretty(t::DeNumber) = string(t.val)
 
 type DeTerminal <: AbstractDeExpr
-	arg::Symbol
+	sym::Symbol
 end
 
-pretty(t::DeTerminal) = string(t.arg)
+pretty(t::DeTerminal) = string(t.sym)
 
 # generic delayed expression that may incorporate arbitrary number of args
 
-type DeExpr{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
+type DeFunExpr{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
 	args::Args
 end
 
-fsym{F,Args}(::DeExpr{F,Args}) = F
+fsym{F,Args}(::DeFunExpr{F,Args}) = F
 
-# a convenient function to create DeExpr, so that people do not have 
-# to specify the type parameters of DeExpr
+# a convenient function to create DeFunExpr, so that people do not have 
+# to specify the type parameters of DeFunExpr
 
 function de_expr{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
-	return DeExpr{f,Args}(args)
+	return DeFunExpr{f,Args}(args)
 end
 
 # generate a pretty string
-function pretty(ex::DeExpr)
+function pretty(ex::DeFunExpr)
 	pargs = join(map(pretty, ex.args), ", ")
 	"$(fsym(ex))($pargs)"
 end
@@ -179,12 +179,5 @@ abstract EvalContext
 abstract CPUContext <: EvalContext
 abstract GPUContext <: EvalContext
 
-type ScalarContext <: CPUContext  # de-vectorized scalar for-loop
-end
 
-type SIMDContext <: CPUContext
-end
-
-type CUDAContext <: GPUContext
-end
 
