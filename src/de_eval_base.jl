@@ -5,39 +5,64 @@
 #
 ##########################################################################
 
+# types
+
 abstract AbstractDeExpr
 
 type DeNumber <: AbstractDeExpr
 	val::Number
 end
 
-pretty(t::DeNumber) = string(t.val)
-
 type DeTerminal <: AbstractDeExpr
 	sym::Symbol
 end
 
-pretty(t::DeTerminal) = string(t.sym)
-
-# generic delayed expression that may incorporate arbitrary number of args
+type DeRef{Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
+	host::Symbol
+	args::Args
+end
 
 type DeFunExpr{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
 	args::Args
 end
 
-fsym{F,Args}(::DeFunExpr{F,Args}) = F
-
-# a convenient function to create DeFunExpr, so that people do not have 
-# to specify the type parameters of DeFunExpr
+# convenient functions
 
 function de_expr{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
-	return DeFunExpr{f,Args}(args)
+	DeFunExpr{f,Args}(args)
 end
 
-# generate a pretty string
+function de_ref{Args<:(AbstractDeExpr...,)}(args::Args)
+	DeRef{Args}(args)	
+end
+
+fsym{F,Args}(::DeFunExpr{F,Args}) = F
+
+# pretty printing
+
+pretty(t::DeNumber) = string(t.val)
+
+pretty(t::DeTerminal) = string(t.sym)
+
+function pretty(ex::DeRef)
+	pargs = join(map(pretty, ex.args), ", ")
+	"$(ex.host)($pargs)"
+end
+
 function pretty(ex::DeFunExpr)
 	pargs = join(map(pretty, ex.args), ", ")
 	"$(fsym(ex))($pargs)"
+end
+
+
+##########################################################################
+#
+# 	exception types
+#
+##########################################################################
+
+type DeError <: Exception
+	msg::ASCIIString
 end
 
 
@@ -155,6 +180,8 @@ end
 @def_reductor :sum
 @def_reductor :max
 @def_reductor :min
+@def_reductor :mean
+@def_reductor :normfro
 
 
 ##########################################################################
@@ -166,10 +193,24 @@ end
 de_wrap{T<:Number}(x::T) = DeNumber(x)
 de_wrap(s::Symbol) = DeTerminal(s)
 
-de_wrap(ex::Expr) = de_expr(
-	ex.args[1], 
-	map(de_wrap, tuple(ex.args[2:]...))
-)
+function de_wrap(ex::Expr) 
+	if ex.head == :(call)
+		fsym = ex.args[1]
+		if !isa(fsym, Symbol)
+			throw(DeError("call-expressions in DeExpr must make the function name explicit."))
+		end
+		
+		de_expr(fsym, map(de_wrap, tuple(ex.args[2:]...)))
+		
+	elseif ex.head == :(ref)
+		hsym = ex.args[1]
+		if !isa(hsym, Symbol)
+			throw(DeError("ref-expressions in DeExpr must make the host name explicit."))
+		end
+		
+		de_ref(hsym, map(de_wrap, tuple(ex.args[2:]...)))
+	end
+end
 
 
 ##########################################################################
@@ -238,7 +279,7 @@ function gen_type_inference{F,
 	
 		t = TFun{F}()
 		:( result_type(
-			TFun{:$F}(),
+			$t,
 			$(gen_type_inference(ex.args[1])) 
 		) )
 end
@@ -262,7 +303,7 @@ function gen_type_inference{F,
 	
 		t = TFun{F}()
 		:( result_type(
-			TFun{:$F}(),
+			$t,
 			$(gen_type_inference(ex.args[1])),
 			$(gen_type_inference(ex.args[2])),
 			$(gen_type_inference(ex.args[3])) 
