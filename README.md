@@ -22,8 +22,6 @@ Macros are provided to simplify the coding
 
 ```julia
 
-r = zeros(size(a))
-
 # generate codes to evaluate the expression in de-vectorized way
 @devec r = a + b * sin(c) / 2 + exp(a + b)
 
@@ -31,3 +29,12 @@ r = zeros(size(a))
 @de_simd r = a + b * sin(c) / 2 + exp(a + b)
 
 ```
+
+In general, the codes written as above will automatically infer the shape and size of r before performing the computation. If your left hand side has already been allocated, you can eliminate this overhead by writing the expressions as follows
+
+```julia
+r = zeros(size(a))
+@devec r[:] = a + b .* c
+``` 
+
+In this case, the de-vectorized code will directly write results to the pre-allocated storage instead of creating a new array. 

@@ -56,6 +56,10 @@ end
 function devec_generate_rhs{F,
 	A1<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,)}, idx::Symbol)
 	
+	if !is_supported_ewise_fun(F, 1)
+		error("[de_generate]: $F with one argument is not a supported ewise function.")
+	end
+	
 	@gensym rd1
 	
 	a1_pre, a1_kernel = devec_generate_rhs(ex.args[1], idx)
@@ -67,6 +71,10 @@ end
 function devec_generate_rhs{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2)}, idx::Symbol)
+	
+	if !is_supported_ewise_fun(F, 2)
+		error("[de_generate]: $F with two arguments is not a supported ewise function.")
+	end
 	
 	@gensym rd1
 	
@@ -82,6 +90,10 @@ function devec_generate_rhs{F,
 	A2<:AbstractDeExpr,
 	A3<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2,A3)}, idx::Symbol)
 	
+	if !is_supported_ewise_fun(F, 3)
+		error("[de_generate]: $F with three arguments is not a supported ewise function.")
+	end
+	
 	@gensym rd1
 	
 	a1_pre, a1_kernel = devec_generate_rhs(ex.args[1], idx)
@@ -93,7 +105,8 @@ function devec_generate_rhs{F,
 	(pre, kernel)
 end
 
-function devec_generate_ewise(lhs::Symbol, rhs::AbstractDeExpr)
+
+function devec_generate_ewise_core(lhs::Symbol, rhs::AbstractDeExpr)
 	@gensym i
 	rhs_pre, rhs_kernel = devec_generate_rhs(rhs, i)
 
@@ -104,6 +117,20 @@ function devec_generate_ewise(lhs::Symbol, rhs::AbstractDeExpr)
 			($lhs)[($i)] = ($rhs_kernel)
 		end
 	end
+end
+
+
+function devec_generate_ewise(lhs::Symbol, rhs::AbstractDeExpr)
+	ty_infer = gen_type_inference(rhs.args[1])
+	size_infer = gen_size_inference(rhs.args[1])
+	core_loop = devec_generate_ewise_core(lhs, rhs)
+	
+	# compose the whole thing
+	
+	:(
+		($lhs) = Array(($ty_infer), ($size_infer));
+		($core_loop)
+	)
 end
 
 
@@ -154,31 +181,42 @@ function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeFunEx
 	
 end
 
-
 function de_generate(::ScalarContext, assign_ex::Expr)
-	@assert assign_ex.head == :(=)
+	# generate codes for cases where lhs is pre-allocated in correct size and type
+	
+	if !(assign_ex.head == :(=))
+		error("[de_generate]: only supports assignment expression (at top level)")
+	end
 	
 	lhs = assign_ex.args[1]
 	rhs = de_wrap(assign_ex.args[2])
 	
-	et::Int = 1
-	
-	if isa(rhs, DeFunExpr)
-		nargs = length(rhs.args)
-		if is_supported_ewise_fun(fsym(rhs), nargs)
-			et = 1		
-		elseif is_supported_reduc_fun(fsym(rhs), nargs)
-			et = 2
-		else
-			error("$(fsym(rhs)) with $nargs arguments is not a supported by DeExpr.")	
-		end
-	end
-	
-	if et == 1 # element-wise transformation
-		devec_generate_ewise(lhs, rhs)
+	if (isa(lhs, Symbol))
 		
-	elseif et == 2 # full reduction
-		devec_generate_fullreduc(lhs, rhs)
+		if isa(rhs, DeFunExpr)
+			nargs = length(rhs.args)
+			if is_supported_reduc_fun(fsym(rhs), nargs)
+				devec_generate_fullreduc(lhs, rhs)
+			else
+				devec_generate_ewise(lhs, rhs)
+			end
+		else
+			devec_generate_ewise(lhs, rhs)
+		end
+		
+	elseif lhs.head == (:ref)
+		
+		la1 = lhs.args[1]
+		la2 = lhs.args[2]
+		
+		if isa(la1, Symbol) && isa(la2, Symbol) && la2 == :(:)
+			devec_generate_ewise_core(la1, rhs)
+		else
+			error("[de_generate]: the form of lhs is unsupported")
+		end
+		
+	else
+		error("[de_generate]: the form of lhs is unsupported")
 	end
 end
 

@@ -11,11 +11,6 @@ b = [3., 4., 5., 6.]
 c = [9., 8., 7., 6.]
 cv = 12.0
 
-r1 = zeros(size(a))
-r2 = zeros(size(a))
-r3 = zeros(size(a))
-r4 = zeros(size(a))
-
 println("testing unary expression ...")
 @devec r1 = -a
 @test isequal(r1, -a)
@@ -23,10 +18,17 @@ println("testing unary expression ...")
 println("testing binary expression ...")
 @devec r2 = a .* b
 @test isequal(r2, a .* b)
+r2_0 = r2
+@devec r2[:] = a + b
+@test r2 === r2_0
+@test isequal(r2, a + b)
 
 println("testing ternary expression ...")
 @devec r3 = +(a, b, c)
 @test isequal(r3, a + b + c)
+r3_0 = r3
+@devec r3[:] = +(a, b, c)
+@test r3 === r3_0
 
 println("testing compound expression ...")
 @devec r4 = (a .* a + b .* b) - (a .* b .* c)
