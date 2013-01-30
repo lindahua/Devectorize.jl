@@ -166,22 +166,9 @@ end
 de_wrap{T<:Number}(x::T) = DeNumber(x)
 de_wrap(s::Symbol) = DeTerminal(s)
 
-# Any sane way to convert an array to a tuple ?
-function array_to_tuple(a)
-	n = length(a)
-	n == 0 ? () :
-	n == 1 ? (a[1],) :
-	n == 2 ? (a[1], a[2]) :
-	n == 3 ? (a[1], a[2], a[3]) :
-	n == 4 ? (a[1], a[2], a[3], a[4]) :
-	n == 5 ? (a[1], a[2], a[3], a[4], a[5]) :
-	n == 6 ? (a[1], a[2], a[3], a[4], a[5], a[6]) :
-	error("array_to_tuple cannot support length > 6")
-end
-
 de_wrap(ex::Expr) = de_expr(
 	ex.args[1], 
-	map(de_wrap, array_to_tuple(ex.args[2:]))
+	map(de_wrap, tuple(ex.args[2:]...))
 )
 
 
