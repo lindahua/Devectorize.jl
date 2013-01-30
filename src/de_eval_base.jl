@@ -153,6 +153,8 @@ macro def_reductor(s)
 end
 
 @def_reductor :sum
+@def_reductor :max
+@def_reductor :min
 
 
 ##########################################################################

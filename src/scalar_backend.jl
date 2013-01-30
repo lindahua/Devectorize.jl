@@ -108,7 +108,7 @@ end
 
 
 function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeFunExpr{F,(A,)})
-	@gensym i
+	@gensym i tmp
 	ty_infer = gen_type_inference(rhs.args[1])
 	siz_infer = gen_size_inference(rhs.args[1])
 	rhs_pre, rhs_kernel = devec_generate_rhs(rhs.args[1], i)
@@ -121,6 +121,34 @@ function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeFunEx
 				$rhs_pre
 				for ($i) = 1 : n
 					($lhs) += ($rhs_kernel)
+				end
+			end
+		)
+	elseif F == (:max)
+		:( $(lhs) = typemin($ty_infer);
+			begin
+				local siz = ($siz_infer)
+				local n = prod(siz)
+				$rhs_pre
+				for ($i) = 1 : n
+					($tmp) = ($rhs_kernel)
+					if ($lhs) < ($tmp)
+						($lhs) = ($tmp)
+					end
+				end
+			end
+		)
+	elseif F == (:min)
+		:( $(lhs) = typemax($ty_infer);
+			begin
+				local siz = ($siz_infer)
+				local n = prod(siz)
+				$rhs_pre
+				for ($i) = 1 : n
+					($tmp) = ($rhs_kernel)
+					if ($lhs) > ($tmp)
+						($lhs) = ($tmp)
+					end
 				end
 			end
 		)
