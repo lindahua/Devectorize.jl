@@ -15,8 +15,6 @@ export
 	ewise_shape,
 	result_type,
 	
-	.*,
-	
 	# core functions
 	de_wrap,
 	de_generate,
