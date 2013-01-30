@@ -17,9 +17,9 @@ type DeTerminal <: AbstractDeExpr
 	sym::Symbol
 end
 
-type DeRef{Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
+type DeRef{NA} <: AbstractDeExpr
 	host::Symbol
-	args::Args
+	args
 end
 
 type DeCall{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
@@ -32,8 +32,8 @@ function de_call{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
 	DeCall{f,Args}(args)
 end
 
-function de_ref{Args<:(AbstractDeExpr...,)}(args::Args)
-	DeRef{Args}(args)	
+function de_ref{Args<:(Symbol...,)}(h::Symbol, args::Args)
+	DeRef{Args}(h, args)	
 end
 
 fsym{F,Args}(::DeCall{F,Args}) = F
@@ -68,120 +68,35 @@ end
 
 ##########################################################################
 #
-# 	Supported operations & functions
+# 	the kind of a call
 #
 ##########################################################################
 
-type TFun{Sym} 
+function is_ewise_call{F,Args<:(AbstractDeExpr...,)}(ex::DeCall{F,Args})
+	N = length(ex.args)
+	return isa(get_op_kind(TCall{F,N}()), EWiseOp)
 end
 
-macro def_uniop_result(s)
-	eval( :( 
-		result_type(::TFun{$s}, T::Type) = T;
-		add!(_supported_ewise_funset, ($s, 1))
-	) )
+function is_reduc_call{F,Args<:(AbstractDeExpr...,)}(ex::DeCall{F,Args})
+	N = length(ex.args)
+	return isa(get_op_kind(TCall{F,N}()), ReducOp)
 end
 
-macro def_binop_result(s)
-	eval( :( 
-		result_type(::TFun{$s}, T1::Type, T2::Type) = promote_type(T1, T2); 
-		add!(_supported_ewise_funset, ($s, 2))
-	) )
+function check_is_ewise(ex::DeCall)
+	s = fsym(ex)
+	na = length(ex.args)
+	if !is_ewise_call(ex)
+		throw(DeError("[de_compile]: $s with $na argument(s) is not a supported ewise operation."))
+	end
 end
 
-macro def_triop_result(s)
-	eval( :( 
-		result_type(::TFun{$s}, T1::Type, T2::Type, T3::Type) = promote_type(T1, T2, T3);
-		add!(_supported_ewise_funset, ($s, 3))
-	) )
+function check_is_reduc(ex::DeCall)
+	s = fsym(ex)
+	na = length(ex.args)
+	if !is_reduc_call(ex)
+		throw(DeError("[de_compile]: $s with $na argument(s) is not a supported reduction."))
+	end
 end
-
-_supported_ewise_funset = Set{(Symbol,Int)}()
-is_supported_ewise_fun(s::Symbol, nargs::Integer) = has(_supported_ewise_funset, (s, nargs))
-
-# arithmetic operators
-
-@def_uniop_result :+
-@def_uniop_result :-
-
-@def_binop_result :+
-@def_binop_result :-
-@def_binop_result :.+
-@def_binop_result :.-
-@def_binop_result :.*
-@def_binop_result :./
-
-@def_triop_result :+
-
-@def_binop_result :min
-@def_binop_result :max
-@def_triop_result :clamp
-
-# elementary math functions
-
-@def_uniop_result :square
-@def_uniop_result :inv
-@def_uniop_result :sqrt
-@def_uniop_result :cbrt
-
-@def_binop_result :mod
-@def_binop_result :pow
-@def_binop_result :hypot
-
-@def_uniop_result :round
-@def_uniop_result :trunc
-@def_uniop_result :ceil
-@def_uniop_result :floor
-
-@def_uniop_result :exp
-@def_uniop_result :log
-@def_uniop_result :exp2
-@def_uniop_result :log2
-@def_uniop_result :log10
-@def_uniop_result :expm1
-@def_uniop_result :log1p
-
-@def_uniop_result :sin
-@def_uniop_result :cos
-@def_uniop_result :tan
-@def_uniop_result :asin
-@def_uniop_result :acos
-@def_uniop_result :atan
-@def_binop_result :atan2
-
-@def_uniop_result :sinh
-@def_uniop_result :cosh
-@def_uniop_result :tanh
-@def_uniop_result :qsinh
-@def_uniop_result :qcosh
-@def_uniop_result :qtanh
-
-# special functions
-
-@def_uniop_result :gamma
-@def_uniop_result :lgamma
-@def_uniop_result :digamma
-
-@def_uniop_result :erf
-@def_uniop_result :erfc
-
-# reduction functions
-
-_supported_reduc_funset = Set{(Symbol,Int)}()
-is_supported_reduc_fun(s::Symbol, nargs::Integer) = has(_supported_reduc_funset, (s, nargs))
-
-macro def_reductor(s)
-	eval( :( 
-		result_type(::TFun{$s}, T::Type) = T;
-		add!(_supported_reduc_funset, ($s, 1))
-	) )
-end
-
-@def_reductor :sum
-@def_reductor :max
-@def_reductor :min
-@def_reductor :mean
-@def_reductor :normfro
 
 
 ##########################################################################
@@ -208,7 +123,7 @@ function de_wrap(ex::Expr)
 			throw(DeError("ref-expressions with non-symbol host name: $hsym"))
 		end
 		
-		de_ref(hsym, map(de_wrap, tuple(ex.args[2:]...)))
+		de_ref(hsym, tuple(ex.args[2:]...))
 	else
 		throw(DeError("Unrecognized expression: $ex"))
 	end

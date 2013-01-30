@@ -39,6 +39,7 @@ devec_reader{T<:Number}(a::Vector{T}) = DeVecReader{T}(a)
 #
 ##########################################################################
 
+
 function devec_generate_rhs(t::DeNumber, idx::Symbol)
 	@gensym rv
 	pre = :()
@@ -56,9 +57,7 @@ end
 function devec_generate_rhs{F,
 	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)}, idx::Symbol)
 	
-	if !is_supported_ewise_fun(F, 1)
-		error("[de_generate]: $F with one argument is not a supported ewise function.")
-	end
+	check_is_ewise(ex)
 	
 	@gensym rd1
 	
@@ -72,9 +71,7 @@ function devec_generate_rhs{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}, idx::Symbol)
 	
-	if !is_supported_ewise_fun(F, 2)
-		error("[de_generate]: $F with two arguments is not a supported ewise function.")
-	end
+	check_is_ewise(ex)
 	
 	@gensym rd1
 	
@@ -90,9 +87,7 @@ function devec_generate_rhs{F,
 	A2<:AbstractDeExpr,
 	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)}, idx::Symbol)
 	
-	if !is_supported_ewise_fun(F, 3)
-		error("[de_generate]: $F with three arguments is not a supported ewise function.")
-	end
+	check_is_ewise(ex)
 	
 	@gensym rd1
 	
@@ -106,36 +101,39 @@ function devec_generate_rhs{F,
 end
 
 
-function devec_generate_ewise_core(lhs::Symbol, rhs::AbstractDeExpr)
+function devec_generate_ewise_core(dst::Symbol, rhs::AbstractDeExpr)
 	@gensym i
 	rhs_pre, rhs_kernel = devec_generate_rhs(rhs, i)
 
 	quote
-		local n = length(($lhs))
+		local n = length(($dst))
 		$rhs_pre
 		for ($i) = 1 : n
-			($lhs)[($i)] = ($rhs_kernel)
+			($dst)[($i)] = ($rhs_kernel)
 		end
 	end
 end
 
 
-function devec_generate_ewise(lhs::Symbol, rhs::AbstractDeExpr)
+function devec_generate_ewise(lhs::DeTerminal, rhs::AbstractDeExpr)
+
+	dst = lhs.sym
 	ty_infer = gen_type_inference(rhs.args[1])
 	size_infer = gen_size_inference(rhs.args[1])
-	core_loop = devec_generate_ewise_core(lhs, rhs)
+	core_loop = devec_generate_ewise_core(dst, rhs)
 	
 	# compose the whole thing
 	
 	:(
-		($lhs) = Array(($ty_infer), ($size_infer));
+		($dst) = Array(($ty_infer), ($size_infer));
 		($core_loop)
 	)
 end
 
 
-function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeCall{F,(A,)})
+function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::DeTerminal, rhs::DeCall{F,(A,)})
 	@gensym i tmp
+	dst = lhs.sym
 	ty_infer = gen_type_inference(rhs.args[1])
 	siz_infer = gen_size_inference(rhs.args[1])
 	rhs_pre, rhs_kernel = devec_generate_rhs(rhs.args[1], i)
@@ -143,23 +141,23 @@ function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeCall{
 	# generate reduction-specific part of codes
 	
 	if F == (:sum)	
-		init = :( ($lhs) = zero($ty_infer) )
-		kernel = :( ($lhs) += ($rhs_kernel) )
+		init = :( ($dst) = zero($ty_infer) )
+		kernel = :( ($dst) += ($rhs_kernel) )
 	elseif F == (:max)
-		init = :( ($lhs) = typemin($ty_infer) )
+		init = :( ($dst) = typemin($ty_infer) )
 		kernel = :( 
 			let ($tmp) = ($rhs_kernel)
-				if ($lhs) < ($tmp)
-					($lhs) = ($tmp)
+				if ($dst) < ($tmp)
+					($dst) = ($tmp)
 				end
 			end
 		)
 	elseif F == (:min)
-		init = :( ($lhs) = typemax($ty_infer) )
+		init = :( ($dst) = typemax($ty_infer) )
 		kernel = :( 
 			let ($tmp) = ($rhs_kernel)
-				if ($lhs) > ($tmp)
-					($lhs) = ($tmp)
+				if ($dst) > ($tmp)
+					($dst) = ($tmp)
 				end
 			end
 		)
@@ -181,21 +179,21 @@ function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeCall{
 	
 end
 
-function de_generate(::ScalarContext, assign_ex::Expr)
+function de_compile(::ScalarContext, assign_ex::Expr)
 	# generate codes for cases where lhs is pre-allocated in correct size and type
 	
 	if !(assign_ex.head == :(=))
-		error("[de_generate]: only supports assignment expression (at top level)")
+		throw(DeError("Top level expression must be an assignment"))
 	end
 	
-	lhs = assign_ex.args[1]
+	lhs = de_wrap(assign_ex.args[1])
 	rhs = de_wrap(assign_ex.args[2])
-	
-	if (isa(lhs, Symbol))
+
+	if isa(lhs, DeTerminal)
 		
 		if isa(rhs, DeCall)
 			nargs = length(rhs.args)
-			if is_supported_reduc_fun(fsym(rhs), nargs)
+			if is_reduc_call(rhs)
 				devec_generate_fullreduc(lhs, rhs)
 			else
 				devec_generate_ewise(lhs, rhs)
@@ -204,19 +202,16 @@ function de_generate(::ScalarContext, assign_ex::Expr)
 			devec_generate_ewise(lhs, rhs)
 		end
 		
-	elseif lhs.head == (:ref)
+	elseif isa(lhs, DeRef)
 		
-		la1 = lhs.args[1]
-		la2 = lhs.args[2]
-		
-		if isa(la1, Symbol) && isa(la2, Symbol) && la2 == :(:)
-			devec_generate_ewise_core(la1, rhs)
+		if length(lhs.args) == 1 && lhs.args[1] == :(:)
+			devec_generate_ewise_core(lhs.host, rhs)
 		else
-			error("[de_generate]: the form of lhs is unsupported")
+			throw(DeError("the form of left-hand-side is unsupported"))
 		end
 		
 	else
-		error("[de_generate]: the form of lhs is unsupported")
+		throw(DeError("the form of right-hand-side is unsupported"))
 	end
 end
 
@@ -229,7 +224,7 @@ end
 
 macro devec(assign_ex) 
 	esc(begin 
-		de_generate(ScalarContext(), assign_ex)
+		de_compile(ScalarContext(), assign_ex)
 	end)
 end
 

@@ -5,8 +5,15 @@ export
 	AbstractDeExpr,
 	DeNumber,
 	DeTerminal,
-	DeFunExpr,
+	DeRef,
+	DeCall,
+
+	# function traits
+	TCall,
 	TFun,
+	register_ewise_mathop,
+	register_ewise_pred,
+	register_reductor,
 	
 	# helper functions
 	fsym,
@@ -17,7 +24,7 @@ export
 	
 	# core functions
 	de_wrap,
-	de_generate,
+	de_compile,
 	get,
 	
 	# evaluation context abstract classes
@@ -34,6 +41,7 @@ export
 	# macros
 	@devec
 	
+include("fun_traits.jl")
 include("de_eval_base.jl")
 include("scalar_backend.jl")
 
