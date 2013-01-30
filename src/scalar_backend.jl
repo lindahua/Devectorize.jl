@@ -113,48 +113,45 @@ function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeFunEx
 	siz_infer = gen_size_inference(rhs.args[1])
 	rhs_pre, rhs_kernel = devec_generate_rhs(rhs.args[1], i)
 	
+	# generate reduction-specific part of codes
+	
 	if F == (:sum)	
-		:( $(lhs) = zero($ty_infer);
-			begin
-				local siz = ($siz_infer)
-				local n = prod(siz)
-				$rhs_pre
-				for ($i) = 1 : n
-					($lhs) += ($rhs_kernel)
-				end
-			end
-		)
+		init = :( ($lhs) = zero($ty_infer) )
+		kernel = :( ($lhs) += ($rhs_kernel) )
 	elseif F == (:max)
-		:( $(lhs) = typemin($ty_infer);
-			begin
-				local siz = ($siz_infer)
-				local n = prod(siz)
-				$rhs_pre
-				for ($i) = 1 : n
-					($tmp) = ($rhs_kernel)
-					if ($lhs) < ($tmp)
-						($lhs) = ($tmp)
-					end
+		init = :( ($lhs) = typemin($ty_infer) )
+		kernel = :( 
+			let ($tmp) = ($rhs_kernel)
+				if ($lhs) < ($tmp)
+					($lhs) = ($tmp)
 				end
 			end
 		)
 	elseif F == (:min)
-		:( $(lhs) = typemax($ty_infer);
-			begin
-				local siz = ($siz_infer)
-				local n = prod(siz)
-				$rhs_pre
-				for ($i) = 1 : n
-					($tmp) = ($rhs_kernel)
-					if ($lhs) > ($tmp)
-						($lhs) = ($tmp)
-					end
+		init = :( ($lhs) = typemax($ty_infer) )
+		kernel = :( 
+			let ($tmp) = ($rhs_kernel)
+				if ($lhs) > ($tmp)
+					($lhs) = ($tmp)
 				end
 			end
 		)
 	else
 		error("Unsupported reduction function $fsym")
 	end
+	
+	# compose the whole thing
+	
+	:( 	$init;
+		let siz = ($siz_infer)
+			local n = prod(siz)
+			($rhs_pre)
+			for ($i) = 1 : n
+				($kernel)
+			end
+		end
+	)
+	
 end
 
 
