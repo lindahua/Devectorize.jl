@@ -22,21 +22,21 @@ type DeRef{Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
 	args::Args
 end
 
-type DeFunExpr{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
+type DeCall{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
 	args::Args
 end
 
 # convenient functions
 
-function de_expr{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
-	DeFunExpr{f,Args}(args)
+function de_call{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
+	DeCall{f,Args}(args)
 end
 
 function de_ref{Args<:(AbstractDeExpr...,)}(args::Args)
 	DeRef{Args}(args)	
 end
 
-fsym{F,Args}(::DeFunExpr{F,Args}) = F
+fsym{F,Args}(::DeCall{F,Args}) = F
 
 # pretty printing
 
@@ -49,7 +49,7 @@ function pretty(ex::DeRef)
 	"$(ex.host)($pargs)"
 end
 
-function pretty(ex::DeFunExpr)
+function pretty(ex::DeCall)
 	pargs = join(map(pretty, ex.args), ", ")
 	"$(fsym(ex))($pargs)"
 end
@@ -197,18 +197,20 @@ function de_wrap(ex::Expr)
 	if ex.head == :(call)
 		fsym = ex.args[1]
 		if !isa(fsym, Symbol)
-			throw(DeError("call-expressions in DeExpr must make the function name explicit."))
+			throw(DeError("call-expressions with non-symbol function name: $fsym"))
 		end
 		
-		de_expr(fsym, map(de_wrap, tuple(ex.args[2:]...)))
+		de_call(fsym, map(de_wrap, tuple(ex.args[2:]...)))
 		
 	elseif ex.head == :(ref)
 		hsym = ex.args[1]
 		if !isa(hsym, Symbol)
-			throw(DeError("ref-expressions in DeExpr must make the host name explicit."))
+			throw(DeError("ref-expressions with non-symbol host name: $hsym"))
 		end
 		
 		de_ref(hsym, map(de_wrap, tuple(ex.args[2:]...)))
+	else
+		throw(DeError("Unrecognized expression: $ex"))
 	end
 end
 
@@ -242,13 +244,13 @@ gen_size_inference(ex::DeNumber) = :( () )
 gen_size_inference(ex::DeTerminal) = :( size($(ex.sym)) )
 
 gen_size_inference{F,
-	A1<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,)}) = :( 
+	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)}) = :( 
 		$(gen_size_inference(ex.args[1])) 
 )
 	
 gen_size_inference{F,
 	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2)}) = :( 
+	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}) = :( 
 		ewise_shape( 
 			$(gen_size_inference(ex.args[1])), 
 			$(gen_size_inference(ex.args[2])) ) 
@@ -257,7 +259,7 @@ gen_size_inference{F,
 gen_size_inference{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr,
-	A3<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2,A3)}) = :( 
+	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)}) = :( 
 		ewise_shape( 
 			$(gen_size_inference(ex.args[1])), 
 			$(gen_size_inference(ex.args[2])),
@@ -275,7 +277,7 @@ gen_type_inference(ex::DeNumber) = :( typeof($(ex.val)) )
 gen_type_inference(ex::DeTerminal) = :( eltype($(ex.sym)) )
 
 function gen_type_inference{F,
-	A1<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,)})
+	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)})
 	
 		t = TFun{F}()
 		:( result_type(
@@ -286,7 +288,7 @@ end
 
 function gen_type_inference{F,
 	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2)}) 
+	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}) 
 	
 		t = TFun{F}()
 		:( result_type(
@@ -299,7 +301,7 @@ end
 function gen_type_inference{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr,
-	A3<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2,A3)})
+	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)})
 	
 		t = TFun{F}()
 		:( result_type(

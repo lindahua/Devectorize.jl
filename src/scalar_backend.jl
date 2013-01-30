@@ -54,7 +54,7 @@ function devec_generate_rhs(t::DeTerminal, idx::Symbol)
 end
 
 function devec_generate_rhs{F,
-	A1<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,)}, idx::Symbol)
+	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)}, idx::Symbol)
 	
 	if !is_supported_ewise_fun(F, 1)
 		error("[de_generate]: $F with one argument is not a supported ewise function.")
@@ -70,7 +70,7 @@ end
 
 function devec_generate_rhs{F,
 	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2)}, idx::Symbol)
+	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}, idx::Symbol)
 	
 	if !is_supported_ewise_fun(F, 2)
 		error("[de_generate]: $F with two arguments is not a supported ewise function.")
@@ -88,7 +88,7 @@ end
 function devec_generate_rhs{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr,
-	A3<:AbstractDeExpr}(ex::DeFunExpr{F,(A1,A2,A3)}, idx::Symbol)
+	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)}, idx::Symbol)
 	
 	if !is_supported_ewise_fun(F, 3)
 		error("[de_generate]: $F with three arguments is not a supported ewise function.")
@@ -134,7 +134,7 @@ function devec_generate_ewise(lhs::Symbol, rhs::AbstractDeExpr)
 end
 
 
-function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeFunExpr{F,(A,)})
+function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::Symbol, rhs::DeCall{F,(A,)})
 	@gensym i tmp
 	ty_infer = gen_type_inference(rhs.args[1])
 	siz_infer = gen_size_inference(rhs.args[1])
@@ -193,7 +193,7 @@ function de_generate(::ScalarContext, assign_ex::Expr)
 	
 	if (isa(lhs, Symbol))
 		
-		if isa(rhs, DeFunExpr)
+		if isa(rhs, DeCall)
 			nargs = length(rhs.args)
 			if is_supported_reduc_fun(fsym(rhs), nargs)
 				devec_generate_fullreduc(lhs, rhs)
