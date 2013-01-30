@@ -12,6 +12,10 @@ export
 	fsym,
 	pretty,
 	de_expr,
+	ewise_shape,
+	result_type,
+	
+	.*,
 	
 	# core functions
 	de_wrap,
@@ -31,7 +35,6 @@ export
 	
 	# macros
 	@devec
-
 	
 include("de_eval_base.jl")
 include("scalar_backend.jl")

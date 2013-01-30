@@ -9,6 +9,7 @@ using Test
 a = [1., 2., 3., 4.]
 b = [3., 4., 5., 6.]
 c = [9., 8., 7., 6.]
+cv = 12.0
 
 r1 = zeros(size(a))
 r2 = zeros(size(a))
@@ -32,7 +33,17 @@ println("testing compound expression ...")
 rr4 = (a .* a + b .* b) - (a .* b .* c)
 @test isequal(r4, rr4)
 
+println("testing sum of unary expression ...")
+@devec s = sum(b)
+@test s == sum(b)
+
 println("testing sum of binary expression ...")
-s = 0
+
 @devec s = sum(b .* c)
 @test s == dot(b, c)
+
+@devec s = sum(b .* cv)
+@test s == cv * sum(b)
+
+@devec s = sum(cv .* b)
+@test s == cv * sum(b)
