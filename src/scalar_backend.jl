@@ -204,7 +204,7 @@ function de_compile(::ScalarContext, assign_ex::Expr)
 		
 	elseif isa(lhs, DeRef)
 		
-		if length(lhs.args) == 1 && lhs.args[1] == :(:)
+		if length(lhs.args) == 1 && lhs.args[1] == DeColon()
 			devec_generate_ewise_core(lhs.host, rhs)
 		else
 			throw(DeError("the form of left-hand-side is unsupported"))

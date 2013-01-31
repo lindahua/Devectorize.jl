@@ -17,6 +17,9 @@ type DeTerminal <: AbstractDeExpr
 	sym::Symbol
 end
 
+type DeColon <: AbstractDeExpr
+end
+
 type DeRef{NA} <: AbstractDeExpr
 	host::Symbol
 	args
@@ -32,7 +35,7 @@ function de_call{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
 	DeCall{f,Args}(args)
 end
 
-function de_ref{Args<:(Symbol...,)}(h::Symbol, args::Args)
+function de_ref{Args<:(AbstractDeExpr...,)}(h::Symbol, args::Args)
 	DeRef{Args}(h, args)	
 end
 
@@ -108,8 +111,18 @@ end
 de_wrap{T<:Number}(x::T) = DeNumber(x)
 de_wrap(s::Symbol) = DeTerminal(s)
 
+function check_simple_ref(c)
+	if !c
+		throw(DeError("non-simple ref expression is not supported."))
+	end
+end
+
+wrap_ref_arg(a::Symbol) = (a == :(:) ? DeColon() : DeTerminal(a))
+
 function de_wrap(ex::Expr) 
+
 	if ex.head == :(call)
+
 		fsym = ex.args[1]
 		if !isa(fsym, Symbol)
 			throw(DeError("call-expressions with non-symbol function name: $fsym"))
@@ -118,12 +131,26 @@ function de_wrap(ex::Expr)
 		de_call(fsym, map(de_wrap, tuple(ex.args[2:]...)))
 		
 	elseif ex.head == :(ref)
+
+		na = length(ex.args)
+		check_simple_ref(na == 2 || na == 3)
+
 		hsym = ex.args[1]
-		if !isa(hsym, Symbol)
-			throw(DeError("ref-expressions with non-symbol host name: $hsym"))
+		if na == 2
+			a1 = ex.args[2]
+			check_simple_ref(isa(a1, Symbol))
+
+			w1 = wrap_ref_arg(a1)
+			de_ref(hsym, (w1,))
+		else
+			a1 = ex.args[2]
+			a2 = ex.args[3]
+			check_simple_ref(isa(a1, Symbol) && isa(a2, Symbol))
+
+			w1 = wrap_ref_arg(a1)
+			w2 = wrap_ref_arg(a2)
+			de_ref(hsym, (w1, w2))
 		end
-		
-		de_ref(hsym, tuple(ex.args[2:]...))
 	else
 		throw(DeError("Unrecognized expression: $ex"))
 	end
