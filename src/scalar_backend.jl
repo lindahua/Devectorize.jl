@@ -40,70 +40,24 @@ devec_reader{T<:Number}(a::Vector{T}) = DeVecReader{T}(a)
 ##########################################################################
 
 
-function devec_generate_rhs(t::DeNumber, idx::Symbol)
+function compose_ewise(::ScalarContext, t::DeNumber, idx::Symbol)
 	@gensym rv
 	pre = :()
 	kernel = :( $(t.val) )
 	(pre, kernel)
 end
 
-function devec_generate_rhs(t::DeTerminal, idx::Symbol)
+function compose_ewise(::ScalarContext, t::DeTerminal, idx::Symbol)
 	@gensym rd
 	pre = :( ($rd) = devec_reader($(t.sym)) )
 	kernel = :( get($rd, $idx) )
 	(pre, kernel)
 end
 
-function devec_generate_rhs{F,
-	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)}, idx::Symbol)
-	
-	check_is_ewise(ex)
-	
-	@gensym rd1
-	
-	a1_pre, a1_kernel = devec_generate_rhs(ex.args[1], idx)
-	pre = a1_pre
-	kernel = :( ($F)( $a1_kernel ) )
-	(pre, kernel)
-end
 
-function devec_generate_rhs{F,
-	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}, idx::Symbol)
-	
-	check_is_ewise(ex)
-	
-	@gensym rd1
-	
-	a1_pre, a1_kernel = devec_generate_rhs(ex.args[1], idx)
-	a2_pre, a2_kernel = devec_generate_rhs(ex.args[2], idx)
-	pre = :( $a1_pre, $a2_pre )
-	kernel = :( ($F)( $a1_kernel, $a2_kernel ) )
-	(pre, kernel)
-end
-
-function devec_generate_rhs{F,
-	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr,
-	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)}, idx::Symbol)
-	
-	check_is_ewise(ex)
-	
-	@gensym rd1
-	
-	a1_pre, a1_kernel = devec_generate_rhs(ex.args[1], idx)
-	a2_pre, a2_kernel = devec_generate_rhs(ex.args[2], idx)
-	a3_pre, a3_kernel = devec_generate_rhs(ex.args[3], idx)
-	
-	pre = :( $a1_pre, $a2_pre, $a3_pre )
-	kernel = :( ($F)( $a1_kernel, $a2_kernel, $a3_kernel ) )
-	(pre, kernel)
-end
-
-
-function devec_generate_ewise_core(dst::Symbol, rhs::AbstractDeExpr)
+function de_compile_ewise_core(ctx::ScalarContext, dst::Symbol, rhs::AbstractDeExpr)
 	@gensym i
-	rhs_pre, rhs_kernel = devec_generate_rhs(rhs, i)
+	rhs_pre, rhs_kernel = compose_ewise(ctx, rhs, i)
 
 	quote
 		local n = length(($dst))
@@ -115,63 +69,53 @@ function devec_generate_ewise_core(dst::Symbol, rhs::AbstractDeExpr)
 end
 
 
-function devec_generate_ewise(lhs::DeTerminal, rhs::AbstractDeExpr)
 
-	dst = lhs.sym
-	ty_infer = gen_type_inference(rhs.args[1])
-	size_infer = gen_size_inference(rhs.args[1])
-	core_loop = devec_generate_ewise_core(dst, rhs)
-	
-	# compose the whole thing
-	
-	:(
-		($dst) = Array(($ty_infer), ($size_infer));
-		($core_loop)
-	)
-end
+compose_reduc_init{A<:AbstractDeExpr}(ctx::ScalarContext, 
+	rhs::DeCall{:sum,(A,)}, dst::Symbol, ty::Symbol) = :( ($dst) = zero($ty) )
+
+compose_reduc_init{A<:AbstractDeExpr}(ctx::ScalarContext, 
+	rhs::DeCall{:max,(A,)}, dst::Symbol, ty::Symbol) = :( ($dst) = typemin($ty) )
+
+compose_reduc_init{A<:AbstractDeExpr}(ctx::ScalarContext, 
+	rhs::DeCall{:min,(A,)}, dst::Symbol, ty::Symbol) = :( ($dst) = typemax($ty) )
 
 
-function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::DeTerminal, rhs::DeCall{F,(A,)})
-	@gensym i tmp
+compose_reduc_kernel{A<:AbstractDeExpr}(ctx::ScalarContext, 
+	rhs::DeCall{:sum,(A,)}, dst::Symbol, x::Symbol) = :( ($dst) += ($x) )
+
+compose_reduc_kernel{A<:AbstractDeExpr}(ctx::ScalarContext, 
+	rhs::DeCall{:max,(A,)}, dst::Symbol, x::Symbol) = :( ($dst) = max(($dst), ($x)) )
+
+compose_reduc_kernel{A<:AbstractDeExpr}(ctx::ScalarContext, 
+	rhs::DeCall{:min,(A,)}, dst::Symbol, x::Symbol) = :( ($dst) = min(($dst), ($x)) )
+
+
+function de_compile_fullreduc{F,A<:AbstractDeExpr}(ctx::ScalarContext, 
+	lhs::DeTerminal, rhs::DeCall{F,(A,)})
+
+	# code for setup
+
 	dst = lhs.sym
 	ty_infer = gen_type_inference(rhs.args[1])
 	siz_infer = gen_size_inference(rhs.args[1])
-	rhs_pre, rhs_kernel = devec_generate_rhs(rhs.args[1], i)
 	
 	# generate reduction-specific part of codes
 	
-	if F == (:sum)	
-		init = :( ($dst) = zero($ty_infer) )
-		kernel = :( ($dst) += ($rhs_kernel) )
-	elseif F == (:max)
-		init = :( ($dst) = typemin($ty_infer) )
-		kernel = :( 
-			let ($tmp) = ($rhs_kernel)
-				if ($dst) < ($tmp)
-					($dst) = ($tmp)
-				end
-			end
-		)
-	elseif F == (:min)
-		init = :( ($dst) = typemax($ty_infer) )
-		kernel = :( 
-			let ($tmp) = ($rhs_kernel)
-				if ($dst) > ($tmp)
-					($dst) = ($tmp)
-				end
-			end
-		)
-	else
-		error("Unsupported reduction function $fsym")
-	end
+	@gensym ty i x
+
+	rhs_pre, rhs_kernel = compose_ewise(ctx, rhs.args[1], i)
+	init = compose_reduc_init(ctx, rhs, dst, ty)
+	kernel = compose_reduc_kernel(ctx, rhs, dst, x)
 	
 	# compose the whole thing
 	
-	:( 	$init;
+	:( 	($ty) = ($ty_infer);
+		($init);
 		let siz = ($siz_infer)
 			local n = prod(siz)
 			($rhs_pre)
 			for ($i) = 1 : n
+				($x) = ($rhs_kernel)
 				($kernel)
 			end
 		end
@@ -183,16 +127,12 @@ end
 # specialized decompile functions
 
 de_compile_ewise(ctx::ScalarContext, 
-	lhs::DeTerminal,
-	rhs::AbstractDeExpr) = devec_generate_ewise(lhs, rhs)
-
-de_compile_ewise(ctx::ScalarContext, 
 	lhs::DeRef{(DeColon,)}, 
-	rhs::AbstractDeExpr) = devec_generate_ewise_core(lhs.host, rhs)
+	rhs::AbstractDeExpr) = de_compile_ewise_core(ctx, lhs.host, rhs)
 
 de_compile_reduc(ctx::ScalarContext, 
 	lhs::DeTerminal,
-	rhs::DeCall) = devec_generate_fullreduc(lhs, rhs)
+	rhs::DeCall) = de_compile_fullreduc(ctx, lhs, rhs)
 
 
 

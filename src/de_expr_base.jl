@@ -282,67 +282,7 @@ function gen_type_inference{F,
 end
 
 
-##########################################################################
-#
-#   Types to express evaluation contexts
-#
-# 	A context refers to a specific configuration of the back-end, 
-#	which can be scalar code, SIMD, CUDA, etc, or even hybrid of them.
-#
-# 	I organize types into a hierarchy, which may simplify later
-# 	implementation.
-#
-# 	Here, most contexts are empty types. In practice, it is ok to have
-# 	some information contained in the context 
-# 	(e.g. the capability version of CUDA may be useful for code-gen)
-#
-##########################################################################
 
-abstract EvalContext
-
-abstract CPUContext <: EvalContext
-abstract GPUContext <: EvalContext
-
-# generic functions for delayed expression compilation
-
-function de_compile(ctx::EvalContext, top_expr::Expr)
-	# generate codes for cases where lhs is pre-allocated in correct size and type
-	
-	if !(top_expr.head == :(=))
-		throw(DeError("Top level expression must be an assignment"))
-	end
-	
-	de_compile(ctx, de_wrap(top_expr))
-end
-
-function de_compile(ctx::EvalContext, top_expr::DeAssign)
-	lhs = top_expr.lhs
-	rhs = top_expr.rhs
-
-	if isa(lhs, DeTerminal)
-		
-		if isa(rhs, DeCall)
-			if is_reduc_call(rhs)
-				de_compile_reduc(ctx, lhs, rhs)
-			else
-				de_compile_ewise(ctx, lhs, rhs)
-			end
-		else
-			de_compile_ewise(ctx, lhs, rhs)
-		end
-		
-	elseif isa(lhs, DeRef)
-		
-		if length(lhs.args) == 1 && lhs.args[1] == DeColon()
-			de_compile_ewise(ctx, lhs, rhs)
-		else
-			throw(DeError("the form of left-hand-side is unsupported"))
-		end
-		
-	else
-		throw(DeError("the form of right-hand-side is unsupported"))
-	end
-end
 
 
 

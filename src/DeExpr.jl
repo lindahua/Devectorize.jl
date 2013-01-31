@@ -42,7 +42,8 @@ export
 	@devec
 	
 include("fun_traits.jl")
-include("de_eval_base.jl")
+include("de_expr_base.jl")
+include("de_compile_base.jl")
 include("scalar_backend.jl")
 
 end
