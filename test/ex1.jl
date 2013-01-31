@@ -51,4 +51,3 @@ end
 @my_bench use_rawloop
 @my_bench use_vectorized
 @my_bench use_devec
-

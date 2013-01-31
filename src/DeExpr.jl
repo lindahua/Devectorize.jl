@@ -41,6 +41,8 @@ export
 	# macros
 	@devec,
 	@inspect_devec
+
+import Base.get
 	
 include("fun_traits.jl")
 include("de_meta.jl")
