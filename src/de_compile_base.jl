@@ -69,11 +69,11 @@ end
 
 
 function compose_ewise{F,
-	A1<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,)}, sinfo)
+	A1<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,)}, sinfo...)
 	
 	check_is_ewise(ex)
 		
-	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo)
+	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo...)
 	pre = a1_pre
 	kernel = :( ($F)( $a1_kernel ) )
 	(pre, kernel)
@@ -81,12 +81,12 @@ end
 
 function compose_ewise{F,
 	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,A2)}, sinfo)
+	A2<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,A2)}, sinfo...)
 	
 	check_is_ewise(ex)
 	
-	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo)
-	a2_pre, a2_kernel = compose_ewise(ctx, ex.args[2], sinfo)
+	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo...)
+	a2_pre, a2_kernel = compose_ewise(ctx, ex.args[2], sinfo...)
 	pre = :( $a1_pre, $a2_pre )
 	kernel = :( ($F)( $a1_kernel, $a2_kernel ) )
 	(pre, kernel)
@@ -95,13 +95,13 @@ end
 function compose_ewise{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr,
-	A3<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,A2,A3)}, sinfo)
+	A3<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,A2,A3)}, sinfo...)
 	
 	check_is_ewise(ex)
 		
-	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo)
-	a2_pre, a2_kernel = compose_ewise(ctx, ex.args[2], sinfo)
-	a3_pre, a3_kernel = compose_ewise(ctx, ex.args[3], sinfo)
+	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo...)
+	a2_pre, a2_kernel = compose_ewise(ctx, ex.args[2], sinfo...)
+	a3_pre, a3_kernel = compose_ewise(ctx, ex.args[3], sinfo...)
 	
 	pre = :( $a1_pre, $a2_pre, $a3_pre )
 	kernel = :( ($F)( $a1_kernel, $a2_kernel, $a3_kernel ) )

@@ -139,8 +139,11 @@ wrap_ref_arg(a::Int) = DeNumber{Int}(a)
 is_supported_lhs(::AbstractDeExpr) = false
 is_supported_lhs(::DeTerminal) = true
 is_supported_lhs(::DeRef{(DeColon,)}) = true
-is_supported_lhs(::DeRef{(DeColon,DeInt)}) = true
-is_supported_lhs(::DeRef{(DeColon,DeTerminal)}) = true
+is_supported_lhs(::DeRef{(DeColon, DeInt)}) = true
+is_supported_lhs(::DeRef{(DeColon, DeTerminal)}) = true
+is_supported_lhs(::DeRef{(DeInt, DeColon)}) = true
+is_supported_lhs(::DeRef{(DeTerminal, DeColon)}) = true
+is_supported_lhs(::DeRef{(DeColon, DeColon)}) = true
 
 function de_wrap(ex::Expr) 
 
@@ -248,9 +251,12 @@ gen_size_inference{F,
 # for reference
 
 gen_size_inference(ex::DeRef{(DeColon,)}) = :( (length($(ex.host)),) )
+gen_size_inference(ex::DeRef{(DeColon, DeColon)}) = :( size($(ex.host)) )
 
 gen_size_inference(ex::DeRef{(DeColon,DeInt)}) = :( (size($(ex.host),1),) )
 gen_size_inference(ex::DeRef{(DeColon,DeTerminal)}) = :( (size($(ex.host),1),) )
+gen_size_inference(ex::DeRef{(DeInt, DeColon)}) = :( (1, size($(ex.host),2)) )
+gen_size_inference(ex::DeRef{(DeTerminal, DeColon)}) = :( (1, size($(ex.host),2)) )
 
 
 ##########################################################################

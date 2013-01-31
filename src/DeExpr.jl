@@ -35,9 +35,9 @@ export
 	
 	# Scalar back-end
 	ScalarContext,
-	DeConst,
-	DeVecReader,
-	devec_reader,
+	de_vec_reader,
+	de_col_reader,
+	de_row_reader,
 	
 	# macros
 	@devec,
