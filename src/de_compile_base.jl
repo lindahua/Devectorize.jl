@@ -32,19 +32,19 @@ function de_compile(ctx::EvalContext, top_expr::Expr)
 	# generate codes for cases where lhs is pre-allocated in correct size and type
 	
 	if !(top_expr.head == :(=))
-		throw(DeError("Top level expression must be an assignment"))
+		throw(TError("Top level expression must be an assignment"))
 	end
 	
-	de_compile(ctx, de_wrap(top_expr))
+	de_compile(ctx, texpr(top_expr))
 end
 
-function de_compile(ctx::EvalContext, top_expr::DeAssign)
+function de_compile(ctx::EvalContext, top_expr::TAssign)
 	lhs = top_expr.lhs
 	rhs = top_expr.rhs
 
-	if isa(lhs, DeTerminal)
+	if isa(lhs, TSym)
 		
-		if isa(rhs, DeCall)
+		if isa(rhs, TCall)
 			if is_reduc_call(rhs)
 				de_compile_reduc(ctx, lhs, rhs)
 			else
@@ -55,7 +55,7 @@ function de_compile(ctx::EvalContext, top_expr::DeAssign)
 		end
 		
 	else
-		@assert isa(lhs, DeRef)
+		@assert isa(lhs, TRef)
 		de_compile_ewise(ctx, lhs, rhs)
 	end
 end
@@ -68,34 +68,28 @@ end
 ##########################################################################
 
 
-function compose_ewise{F,
-	A1<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,)}, sinfo...)
+function compose_ewise{A1<:TExpr}(ctx::EvalContext, ex::TCall{(A1,)}, sinfo...)
 	
 	check_is_ewise(ex)
 		
 	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo...)
 	pre = a1_pre
-	kernel = :( ($F)( $a1_kernel ) )
+	kernel = :( ($(ex.fun))( $a1_kernel ) )
 	(pre, kernel)
 end
 
-function compose_ewise{F,
-	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,A2)}, sinfo...)
+function compose_ewise{A1<:TExpr,A2<:TExpr}(ctx::EvalContext, ex::TCall{(A1,A2)}, sinfo...)
 	
 	check_is_ewise(ex)
 	
 	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo...)
 	a2_pre, a2_kernel = compose_ewise(ctx, ex.args[2], sinfo...)
 	pre = :( $a1_pre, $a2_pre )
-	kernel = :( ($F)( $a1_kernel, $a2_kernel ) )
+	kernel = :( ($(ex.fun))( $a1_kernel, $a2_kernel ) )
 	(pre, kernel)
 end
 
-function compose_ewise{F,
-	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr,
-	A3<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,A2,A3)}, sinfo...)
+function compose_ewise{A1<:TExpr,A2<:TExpr,A3<:TExpr}(ctx::EvalContext, ex::TCall{(A1,A2,A3)}, sinfo...)
 	
 	check_is_ewise(ex)
 		
@@ -104,7 +98,7 @@ function compose_ewise{F,
 	a3_pre, a3_kernel = compose_ewise(ctx, ex.args[3], sinfo...)
 	
 	pre = :( $a1_pre, $a2_pre, $a3_pre )
-	kernel = :( ($F)( $a1_kernel, $a2_kernel, $a3_kernel ) )
+	kernel = :( ($(ex.fun))( $a1_kernel, $a2_kernel, $a3_kernel ) )
 	(pre, kernel)
 end
 

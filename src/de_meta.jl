@@ -1,4 +1,10 @@
 
+# This file provides support for meta-programming
+#
+# Primarily, it provides function to wrap Julia Expr instances
+# to typed expressions
+#
+
 ##########################################################################
 #
 # 	Types to express delayed expressions
@@ -7,70 +13,69 @@
 
 # types
 
-abstract AbstractDeExpr
+abstract TExpr
 
-type DeNumber{T<:Number} <: AbstractDeExpr
-	val::T
+type TNum{T<:Number} <: TExpr
+	e::T
 end
 
-typealias DeInt DeNumber{Int}
+typealias TInt TNum{Int}
 
-type DeTerminal <: AbstractDeExpr
-	sym::Symbol
+type TSym <: TExpr
+	e::Symbol
 end
 
-type DeColon <: AbstractDeExpr
+type TColon <: TExpr
 end
 
-type DeRef{Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
+type TRef{Args<:(TExpr...,)} <: TExpr
 	host::Symbol
 	args::Args
 end
 
-type DeCall{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
+type TCall{Args<:(TExpr...,)} <: TExpr
+	fun::Symbol
 	args::Args
 end
 
-type DeAssign{Lhs<:AbstractDeExpr, Rhs<:AbstractDeExpr} <: AbstractDeExpr
+type TAssign{Lhs<:TExpr, Rhs<:TExpr} <: TExpr
 	lhs::Lhs
 	rhs::Rhs
 end
 
 # convenient functions
 
-function de_number{T<:Number}(x::T)
-	DeNumber{T}(x)
+function tnumber{T<:Number}(x::T)
+	TNum{T}(x)
 end
 
-function de_call{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
-	DeCall{f,Args}(args)
+function tcall{Args<:(TExpr...,)}(f::Symbol, args::Args)
+	TCall{Args}(f, args)
 end
 
-function de_ref{Args<:(AbstractDeExpr...,)}(h::Symbol, args::Args)
-	DeRef{Args}(h, args)	
+function tref{Args<:(TExpr...,)}(h::Symbol, args::Args)
+	TRef{Args}(h, args)	
 end
 
-function de_assign{Lhs<:AbstractDeExpr, Rhs<:AbstractDeExpr}(lhs::Lhs, rhs::Rhs)
-	DeAssign{Lhs, Rhs}(lhs, rhs)
+function tassign{Lhs<:TExpr, Rhs<:TExpr}(lhs::Lhs, rhs::Rhs)
+	TAssign{Lhs, Rhs}(lhs, rhs)
 end
 
-
-fsym{F,Args}(::DeCall{F,Args}) = F
 
 # pretty printing
 
-pretty(t::DeNumber) = string(t.val)
+pretty(t::TNum) = string(t.e)
 
-pretty(t::DeTerminal) = string(t.sym)
+pretty(t::TSym) = string(t.e)
 
-function pretty(ex::DeRef)
-	pargs = join(map(pretty, ex.args), ", ")
-	"$(ex.host)($pargs)"
+function pretty(t::TRef)
+	pargs = join(map(pretty, t.args), ", ")
+	"$(t.host)($pargs)"
 end
 
-function pretty(ex::DeCall)
-	pargs = join(map(pretty, ex.args), ", ")
-	"$(fsym(ex))($pargs)"
+function pretty(t::TCall)
+	pargs = join(map(pretty, t.args), ", ")
+	"$(t.fun)($pargs)"
 end
 
 
@@ -91,26 +96,26 @@ end
 #
 ##########################################################################
 
-function is_ewise_call{F,Args<:(AbstractDeExpr...,)}(ex::DeCall{F,Args})
+function is_ewise_call{Args<:(TExpr...,)}(ex::TCall{Args})
 	N = length(ex.args)
-	return isa(get_op_kind(TCall{F,N}()), EWiseOp)
+	return isa(get_op_kind(TCallSig{ex.fun, N}()), EWiseOp)
 end
 
-function is_reduc_call{F,Args<:(AbstractDeExpr...,)}(ex::DeCall{F,Args})
+function is_reduc_call{Args<:(TExpr...,)}(ex::TCall{Args})
 	N = length(ex.args)
-	return isa(get_op_kind(TCall{F,N}()), ReducOp)
+	return isa(get_op_kind(TCallSig{ex.fun, N}()), ReducOp)
 end
 
-function check_is_ewise(ex::DeCall)
-	s = fsym(ex)
+function check_is_ewise(ex::TCall)
+	s = ex.fun
 	na = length(ex.args)
 	if !is_ewise_call(ex)
 		throw(DeError("[de_compile]: $s with $na argument(s) is not a supported ewise operation."))
 	end
 end
 
-function check_is_reduc(ex::DeCall)
-	s = fsym(ex)
+function check_is_reduc(ex::TCall)
+	s = ex.fun
 	na = length(ex.args)
 	if !is_reduc_call(ex)
 		throw(DeError("[de_compile]: $s with $na argument(s) is not a supported reduction."))
@@ -120,12 +125,12 @@ end
 
 ##########################################################################
 #
-# 	de_wrap: functions to wrap Expr to AST
+# 	texpr: functions to wrap Expr to AST
 #
 ##########################################################################
 
-de_wrap{T<:Number}(x::T) = DeNumber{T}(x)
-de_wrap(s::Symbol) = DeTerminal(s)
+texpr{T<:Number}(x::T) = TNum{T}(x)
+texpr(s::Symbol) = TSym(s)
 
 function check_simple_ref(c)
 	if !c
@@ -133,19 +138,19 @@ function check_simple_ref(c)
 	end
 end
 
-wrap_ref_arg(a::Symbol) = (a == :(:) ? DeColon() : DeTerminal(a))
-wrap_ref_arg(a::Int) = DeNumber{Int}(a)
+wrap_ref_arg(a::Symbol) = (a == :(:) ? TColon() : TSym(a))
+wrap_ref_arg(a::Int) = TNum{Int}(a)
 
-is_supported_lhs(::AbstractDeExpr) = false
-is_supported_lhs(::DeTerminal) = true
-is_supported_lhs(::DeRef{(DeColon,)}) = true
-is_supported_lhs(::DeRef{(DeColon, DeInt)}) = true
-is_supported_lhs(::DeRef{(DeColon, DeTerminal)}) = true
-is_supported_lhs(::DeRef{(DeInt, DeColon)}) = true
-is_supported_lhs(::DeRef{(DeTerminal, DeColon)}) = true
-is_supported_lhs(::DeRef{(DeColon, DeColon)}) = true
+is_supported_lhs(::TExpr) = false
+is_supported_lhs(::TSym) = true
+is_supported_lhs(::TRef{(TColon,)}) = true
+is_supported_lhs(::TRef{(TColon, TInt)}) = true
+is_supported_lhs(::TRef{(TColon, TSym)}) = true
+is_supported_lhs(::TRef{(TInt, TColon)}) = true
+is_supported_lhs(::TRef{(TSym, TColon)}) = true
+is_supported_lhs(::TRef{(TColon, TColon)}) = true
 
-function de_wrap(ex::Expr) 
+function texpr(ex::Expr) 
 
 	if ex.head == :(call)
 
@@ -154,7 +159,7 @@ function de_wrap(ex::Expr)
 			throw(DeError("call-expressions with non-symbol function name: $fsym"))
 		end
 		
-		de_call(fsym, map(de_wrap, tuple(ex.args[2:]...)))
+		tcall(fsym, map(texpr, tuple(ex.args[2:]...)))
 		
 	elseif ex.head == :(ref)
 
@@ -171,7 +176,7 @@ function de_wrap(ex::Expr)
 			check_simple_ref(isa(a1, SymOrNum))
 
 			w1 = wrap_ref_arg(a1)
-			de_ref(hsym, (w1,))
+			tref(hsym, (w1,))
 		else
 			a1 = ex.args[2]
 			a2 = ex.args[3]
@@ -180,20 +185,20 @@ function de_wrap(ex::Expr)
 
 			w1 = wrap_ref_arg(a1)
 			w2 = wrap_ref_arg(a2)
-			de_ref(hsym, (w1, w2))
+			tref(hsym, (w1, w2))
 		end
 
 	elseif ex.head == :(=)
 
 		@assert length(ex.args) == 2
-		lhs = de_wrap(ex.args[1])
-		rhs = de_wrap(ex.args[2])
+		lhs = texpr(ex.args[1])
+		rhs = texpr(ex.args[2])
 
 		if !is_supported_lhs(lhs)
-			throw(DeError("Left-hand-side in current form is unsupported in DeExpr"))
+			throw(DeError("Left-hand-side in current form is unsupported in TExpr"))
 		end
 
-		de_assign(lhs, rhs)
+		tassign(lhs, rhs)
 
 	else
 		throw(DeError("Unrecognized expression: $ex"))
@@ -221,27 +226,21 @@ ewise_shape(s1, ::(), s3) = promote_shape(s1, s3)
 ewise_shape(::(), s2, s3) = promote_shape(s2, s3)
 ewise_shape(s1, s2, s3) = promote_shape(promote_shape(s1, s2), s3)
 
-gen_size_inference(ex::DeNumber) = :( () )
-gen_size_inference(ex::DeTerminal) = :( size($(ex.sym)) )
-gen_size_inference(ex::DeAssign) = :( $(gen_size_inference(ex.rhs)) )
+gen_size_inference(ex::TNum) = :( () )
+gen_size_inference(ex::TSym) = :( size($(ex.e)) )
+gen_size_inference(ex::TAssign) = :( $(gen_size_inference(ex.rhs)) )
 
-gen_size_inference{F,
-	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)}) = :( 
+gen_size_inference{A1<:TExpr}(ex::TCall{(A1,)}) = :( 
 		$(gen_size_inference(ex.args[1])) 
 )
 	
-gen_size_inference{F,
-	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}) = :( 
+gen_size_inference{A1<:TExpr, A2<:TExpr}(ex::TCall{(A1,A2)}) = :( 
 	ewise_shape( 
 		$(gen_size_inference(ex.args[1])), 
 		$(gen_size_inference(ex.args[2])) ) 
 )
 
-gen_size_inference{F,
-	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr,
-	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)}) = :( 
+gen_size_inference{A1<:TExpr, A2<:TExpr, A3<:TExpr}(ex::TCall{(A1,A2,A3)}) = :( 
 	ewise_shape( 
 		$(gen_size_inference(ex.args[1])), 
 		$(gen_size_inference(ex.args[2])),
@@ -250,13 +249,13 @@ gen_size_inference{F,
 
 # for reference
 
-gen_size_inference(ex::DeRef{(DeColon,)}) = :( (length($(ex.host)),) )
-gen_size_inference(ex::DeRef{(DeColon, DeColon)}) = :( size($(ex.host)) )
+gen_size_inference(ex::TRef{(TColon,)}) = :( (length($(ex.host)),) )
+gen_size_inference(ex::TRef{(TColon, TColon)}) = :( size($(ex.host)) )
 
-gen_size_inference(ex::DeRef{(DeColon,DeInt)}) = :( (size($(ex.host),1),) )
-gen_size_inference(ex::DeRef{(DeColon,DeTerminal)}) = :( (size($(ex.host),1),) )
-gen_size_inference(ex::DeRef{(DeInt, DeColon)}) = :( (1, size($(ex.host),2)) )
-gen_size_inference(ex::DeRef{(DeTerminal, DeColon)}) = :( (1, size($(ex.host),2)) )
+gen_size_inference(ex::TRef{(TColon,TInt)}) = :( (size($(ex.host),1),) )
+gen_size_inference(ex::TRef{(TColon,TSym)}) = :( (size($(ex.host),1),) )
+gen_size_inference(ex::TRef{(TInt, TColon)}) = :( (1, size($(ex.host),2)) )
+gen_size_inference(ex::TRef{(TSym, TColon)}) = :( (1, size($(ex.host),2)) )
 
 
 ##########################################################################
@@ -265,26 +264,23 @@ gen_size_inference(ex::DeRef{(DeTerminal, DeColon)}) = :( (1, size($(ex.host),2)
 #
 ##########################################################################
 
-gen_type_inference(ex::DeNumber) = :( typeof($(ex.val)) )
-gen_type_inference(ex::DeTerminal) = :( eltype($(ex.sym)) )
-gen_type_inference(ex::DeAssign) = :( $(gen_type_inference(ex.rhs)) )
-gen_type_inference(ex::DeRef) = :( eltype($(ex.host)) )
+gen_type_inference(ex::TNum) = :( typeof($(ex.e)) )
+gen_type_inference(ex::TSym) = :( eltype($(ex.e)) )
+gen_type_inference(ex::TAssign) = :( $(gen_type_inference(ex.rhs)) )
+gen_type_inference(ex::TRef) = :( eltype($(ex.host)) )
 
-function gen_type_inference{F,
-	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)})
+function gen_type_inference{A1<:TExpr}(ex::TCall{(A1,)})
 	
-	t = TFun{F}()
+	t = TFun{ex.fun}()
 	:( result_type(
 		$t,
 		$(gen_type_inference(ex.args[1])) 
 	) )
 end
 
-function gen_type_inference{F,
-	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}) 
+function gen_type_inference{A1<:TExpr,A2<:TExpr}(ex::TCall{(A1,A2)}) 
 	
-	t = TFun{F}()
+	t = TFun{ex.fun}()
 	:( result_type(
 		$t,
 		$(gen_type_inference(ex.args[1])),
@@ -292,12 +288,9 @@ function gen_type_inference{F,
 	) )
 end
 	
-function gen_type_inference{F,
-	A1<:AbstractDeExpr,
-	A2<:AbstractDeExpr,
-	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)})
+function gen_type_inference{A1<:TExpr,A2<:TExpr,A3<:TExpr}(ex::TCall{(A1,A2,A3)})
 	
-	t = TFun{F}()
+	t = TFun{ex.fun}()
 	:( result_type(
 		$t,
 		$(gen_type_inference(ex.args[1])),

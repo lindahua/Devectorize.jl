@@ -1,14 +1,14 @@
 # Function traits to support delayed evaluation
 
 type TFun{S} end
-type TCall{S, N} end
+type TCallSig{S, N} end
 
 abstract FunKind
 
 type EWiseOp <: FunKind end
 type ReducOp <: FunKind end
 
-get_op_kind{S,N}(::TCall{S,N}) = nothing
+get_op_kind{S,N}(::TCallSig{S,N}) = nothing
 
 
 ##########################################################################
@@ -20,7 +20,7 @@ get_op_kind{S,N}(::TCall{S,N}) = nothing
 function register_ewise_mathop(sym::Symbol, nargs::Integer)
 	# the function to generate the codes to register a ewise function
 
-	tc = TCall{sym, nargs}
+	tc = TCallSig{sym, nargs}
 	s1 = :( get_op_kind(::$(expr(:quote, tc))) = EWiseOp() )
 
 	tf = TFun{sym}
@@ -45,7 +45,7 @@ end
 function register_ewise_pred(sym::Symbol, nargs::Integer)
 	# the function to generate the codes to register a ewise predicate
 
-	tc = TCall{sym, nargs}
+	tc = TCallSig{sym, nargs}
 	s1 = :( get_op_kind(::$(expr(:quote, tc))) = EWiseOp() )
 
 	tf = TFun{sym}
@@ -67,7 +67,7 @@ end
 function register_reductor(sym::Symbol, nargs::Integer)
 	# the function to generate the codes to register a reduction function
 
-	tc = TCall{sym, nargs}
+	tc = TCallSig{sym, nargs}
 	s1 = :( get_op_kind(::$(expr(:quote, tc))) = ReducOp() )
 
 	tf = TFun{sym}

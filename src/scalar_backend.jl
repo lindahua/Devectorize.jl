@@ -18,31 +18,31 @@ get{T<:Number}(r::DeConst{T}, ::Int, ::Int) = r.val
 
 # vector reader
 
-type DeArrReader{T<:Number}
+type DeArr{T<:Number}
 	src::Array{T}
 end
-get{T<:Number}(r::DeArrReader{T}, i::Int) = r.src[i]
-get{T<:Number}(r::DeArrReader{T}, i::Int, j::Int) = r.src[i,j]
+get{T<:Number}(r::DeArr{T}, i::Int) = r.src[i]
+get{T<:Number}(r::DeArr{T}, i::Int, j::Int) = r.src[i,j]
 
-type DeColReader{T<:Number}
+type DeCol{T<:Number}
 	src::Array{T}
 	icol::Int
 end
-get{T<:Number}(r::DeColReader{T}, i::Int) = r.src[i, r.icol]
+get{T<:Number}(r::DeCol{T}, i::Int) = r.src[i, r.icol]
 
-type DeRowReader{T<:Number}
+type DeRow{T<:Number}
 	src::Array{T}
 	irow::Int
 end
-get{T<:Number}(r::DeRowReader{T}, i::Int) = r.src[r.irow, i]
+get{T<:Number}(r::DeRow{T}, i::Int) = r.src[r.irow, i]
 
 
 # functions to generate accessors
 
-de_vec_reader{T<:Number}(v::T) = DeConst{T}(v)
-de_vec_reader{T<:Number}(a::Array{T}) = DeArrReader{T}(a)
-de_col_reader{T<:Number}(a::Array{T}, i::Integer) = DeColReader{T}(a, i)
-de_row_reader{T<:Number}(a::Array{T}, i::Integer) = DeRowReader{T}(a, i)
+de_arr{T<:Number}(v::T) = DeConst{T}(v)
+de_arr{T<:Number}(a::Array{T}) = DeArr{T}(a)
+de_col{T<:Number}(a::Array{T}, i::Integer) = DeCol{T}(a, i)
+de_row{T<:Number}(a::Array{T}, i::Integer) = DeRow{T}(a, i)
 
 ##########################################################################
 #
@@ -52,74 +52,74 @@ de_row_reader{T<:Number}(a::Array{T}, i::Integer) = DeRowReader{T}(a, i)
 
 # right-hand-side code
 
-function compose_ewise(::ScalarContext, t::DeNumber, idx::Symbol)
+function compose_ewise(::ScalarContext, t::TNum, idx::Symbol)
 	@gensym rv
 	pre = :()
-	kernel = :( $(t.val) )
+	kernel = :( $(t.e) )
 	(pre, kernel)
 end
 
-function compose_ewise(::ScalarContext, t::DeTerminal, idx::Symbol)
+function compose_ewise(::ScalarContext, t::TSym, idx::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_vec_reader($(t.sym)) )
+	pre = :( ($rd) = de_arr($(t.e)) )
 	kernel = :( get($rd, $idx) )
 	(pre, kernel)
 end
 
-function compose_ewise(::ScalarContext, ex::DeRef{(DeColon,)}, idx::Symbol)
+function compose_ewise(::ScalarContext, ex::TRef{(TColon,)}, idx::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_vec_reader($(ex.host)) )
+	pre = :( ($rd) = de_arr($(ex.host)) )
 	kernel = :( get($rd, $idx) )
 	(pre, kernel)
 end
 
-function compose_ewise(::ScalarContext, ex::DeRef{(DeColon,DeInt)}, idx::Symbol)
+function compose_ewise(::ScalarContext, ex::TRef{(TColon,TInt)}, idx::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_col_reader($(ex.host), $(ex.args[2].val)) )
+	pre = :( ($rd) = de_col($(ex.host), $(ex.args[2].e)) )
 	kernel = :( get($rd, $idx) )
 	(pre, kernel)
 end
 
-function compose_ewise(::ScalarContext, ex::DeRef{(DeColon,DeTerminal)}, idx::Symbol)
+function compose_ewise(::ScalarContext, ex::TRef{(TColon,TSym)}, idx::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_col_reader($(ex.host), $(ex.args[2].sym)) )
+	pre = :( ($rd) = de_col($(ex.host), $(ex.args[2].e)) )
 	kernel = :( get($rd, $idx) )
 	(pre, kernel)
 end
 
-function compose_ewise(::ScalarContext, ex::DeRef{(DeInt,DeColon)}, idx::Symbol)
+function compose_ewise(::ScalarContext, ex::TRef{(TInt,TColon)}, idx::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_row_reader($(ex.host), $(ex.args[1].val)) )
+	pre = :( ($rd) = de_row($(ex.host), $(ex.args[1].e)) )
 	kernel = :( get($rd, $idx) )
 	(pre, kernel)
 end
 
-function compose_ewise(::ScalarContext, ex::DeRef{(DeTerminal, DeColon)}, idx::Symbol)
+function compose_ewise(::ScalarContext, ex::TRef{(TSym, TColon)}, idx::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_row_reader($(ex.host), $(ex.args[1].sym)) )
+	pre = :( ($rd) = de_row($(ex.host), $(ex.args[1].e)) )
 	kernel = :( get($rd, $idx) )
 	(pre, kernel)
 end
 
 # right-hand-side code for 2D
 
-function compose_ewise(::ScalarContext, t::DeNumber, i::Symbol, j::Symbol)
+function compose_ewise(::ScalarContext, t::TNum, i::Symbol, j::Symbol)
 	@gensym rv
 	pre = :()
-	kernel = :( $(t.val) )
+	kernel = :( $(t.e) )
 	(pre, kernel)
 end
 
-function compose_ewise(::ScalarContext, t::DeTerminal, i::Symbol, j::Symbol)
+function compose_ewise(::ScalarContext, t::TSym, i::Symbol, j::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_vec_reader($(t.sym)) )
+	pre = :( ($rd) = de_arr($(t.e)) )
 	kernel = :( get($rd, $i, $j) )
 	(pre, kernel)
 end
 
-function compose_ewise(::ScalarContext, ex::DeRef{(DeColon,DeColon)}, i::Symbol, j::Symbol)
+function compose_ewise(::ScalarContext, ex::TRef{(TColon,TColon)}, i::Symbol, j::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_vec_reader($(t.host)) )
+	pre = :( ($rd) = de_arr($(t.host)) )
 	kernel = :( get($rd, $i, $j) )
 	(pre, kernel)
 end
@@ -127,45 +127,45 @@ end
 
 # left-hand-side code
 
-function compose_ewise_lhs(::ScalarContext, lhs::DeTerminal, idx::Symbol)
-	(	:( length($(lhs.sym)) ), 
-		:( $(lhs.sym)[$(idx)] ) 
+function compose_ewise_lhs(::ScalarContext, lhs::TSym, idx::Symbol)
+	(	:( length($(lhs.e)) ), 
+		:( $(lhs.e)[$(idx)] ) 
 	)
 end
 
-function compose_ewise_lhs(::ScalarContext, lhs::DeRef{(DeColon,)}, idx::Symbol)
+function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TColon,)}, idx::Symbol)
 	(	:( length($(lhs.host)) ),
 		:( $(lhs.host)[$(idx)] )
 	)
 end
 
-function compose_ewise_lhs(::ScalarContext, lhs::DeRef{(DeColon,DeInt)}, idx::Symbol)
+function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TColon,TInt)}, idx::Symbol)
 	(	:( size($(lhs.host),1) ),
-		:( $(lhs.host)[$(idx),$(lhs.args[2].val)] )
+		:( $(lhs.host)[$(idx),$(lhs.args[2].e)] )
 	)
 end
 
-function compose_ewise_lhs(::ScalarContext, lhs::DeRef{(DeColon,DeTerminal)}, idx::Symbol)
+function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TColon,TSym)}, idx::Symbol)
 	(	:( size($(lhs.host),1) ),
-		:( $(lhs.host)[$(idx),$(lhs.args[2].sym)] )
+		:( $(lhs.host)[$(idx),$(lhs.args[2].e)] )
 	)
 end
 
-function compose_ewise_lhs(::ScalarContext, lhs::DeRef{(DeInt,DeColon)}, idx::Symbol)
+function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TInt,TColon)}, idx::Symbol)
 	(	:( size($(lhs.host),2) ),
-		:( $(lhs.host)[$(lhs.args[1].val), $(idx)] )
+		:( $(lhs.host)[$(lhs.args[1].e), $(idx)] )
 	)
 end
 
-function compose_ewise_lhs(::ScalarContext, lhs::DeRef{(DeTerminal,DeColon)}, idx::Symbol)
+function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TSym,TColon)}, idx::Symbol)
 	(	:( size($(lhs.host),2) ),
-		:( $(lhs.host)[$(lhs.args[1].sym), $(idx)] )
+		:( $(lhs.host)[$(lhs.args[1].e), $(idx)] )
 	)
 end
 
 
 
-function de_compile_ewise_1d(ctx::ScalarContext, lhs::AbstractDeExpr, rhs::AbstractDeExpr)
+function de_compile_ewise_1d(ctx::ScalarContext, lhs::TExpr, rhs::TExpr)
 	@gensym i n
 	lhs_len, lhs_expr = compose_ewise_lhs(ctx, lhs, i)
 	rhs_pre, rhs_kernel = compose_ewise(ctx, rhs, i)
@@ -181,7 +181,7 @@ function de_compile_ewise_1d(ctx::ScalarContext, lhs::AbstractDeExpr, rhs::Abstr
 	end
 end
 
-function de_compile_ewise(ctx::ScalarContext, lhs::DeTerminal, rhs::AbstractDeExpr) 
+function de_compile_ewise(ctx::ScalarContext, lhs::TSym, rhs::TExpr) 
 
 	ty_infer = gen_type_inference(rhs)
 	size_infer = gen_size_inference(rhs)
@@ -190,25 +190,25 @@ function de_compile_ewise(ctx::ScalarContext, lhs::DeTerminal, rhs::AbstractDeEx
 	# compose the whole thing
 	
 	:(
-		($(lhs.sym)) = Array(($ty_infer), ($size_infer));
+		($(lhs.e)) = Array(($ty_infer), ($size_infer));
 		($main_loop)
 	)
 
 end
 
-de_compile_ewise(ctx::ScalarContext, lhs::DeRef{(DeColon,)}, 
+de_compile_ewise(ctx::ScalarContext, lhs::TRef{(TColon,)}, 
 	rhs) = de_compile_ewise_1d(ctx, lhs, rhs)
 
-de_compile_ewise(ctx::ScalarContext, lhs::DeRef{(DeColon,DeInt)}, 
+de_compile_ewise(ctx::ScalarContext, lhs::TRef{(TColon,TInt)}, 
 	rhs) = de_compile_ewise_1d(ctx, lhs, rhs)
 
-de_compile_ewise(ctx::ScalarContext, lhs::DeRef{(DeColon,DeTerminal)}, 
+de_compile_ewise(ctx::ScalarContext, lhs::TRef{(TColon,TSym)}, 
 	rhs) = de_compile_ewise_1d(ctx, lhs, rhs)
 
-de_compile_ewise(ctx::ScalarContext, lhs::DeRef{(DeInt,DeColon)}, 
+de_compile_ewise(ctx::ScalarContext, lhs::TRef{(TInt,TColon)}, 
 	rhs) = de_compile_ewise_1d(ctx, lhs, rhs)
 
-de_compile_ewise(ctx::ScalarContext, lhs::DeRef{(DeTerminal,DeColon)}, 
+de_compile_ewise(ctx::ScalarContext, lhs::TRef{(TSym,TColon)}, 
 	rhs) = de_compile_ewise_1d(ctx, lhs, rhs)
 
 
@@ -220,51 +220,37 @@ de_compile_ewise(ctx::ScalarContext, lhs::DeRef{(DeTerminal,DeColon)},
 
 # initializers
 
-compose_reduc_init{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:sum,(A,)}, dst::Symbol, ty::Symbol) = :( ($dst) = zero($ty) )
+function compose_reduc_init(ctx::ScalarContext, rhs::TCall, dst::Symbol, ty::Symbol)
+	f = rhs.fun
+	f == (:sum) ?  :( ($dst) = zero($ty) ) :
+	f == (:max) ?  :( ($dst) = typemin($ty) ) :
+	f == (:min) ?  :( ($dst) = typemax($ty) ) :
+	f == (:mean) ? :( ($dst) = zero($ty) ) :
+	:()
+end
 
-compose_reduc_init{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:max,(A,)}, dst::Symbol, ty::Symbol) = :( ($dst) = typemin($ty) )
+function compose_reduc_kernel(ctx::ScalarContext, rhs::TCall, dst::Symbol, x::Symbol)
+	f = rhs.fun
+	f == (:sum) ?  :( ($dst) += ($x) ) :
+	f == (:max) ?  :( ($dst) = max(($dst), ($x)) ) :
+	f == (:min) ?  :( ($dst) = min(($dst), ($x)) ) :
+	f == (:mean) ? :( ($dst) += ($x) ) :
+	:()
+end
 
-compose_reduc_init{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:min,(A,)}, dst::Symbol, ty::Symbol) = :( ($dst) = typemax($ty) )
-
-compose_reduc_init{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:mean,(A,)}, dst::Symbol, ty::Symbol) = :( ($dst) = zero($ty) )
-
-
-# updating kernels
-
-compose_reduc_kernel{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:sum,(A,)}, dst::Symbol, x::Symbol) = :( ($dst) += ($x) )
-
-compose_reduc_kernel{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:max,(A,)}, dst::Symbol, x::Symbol) = :( ($dst) = max(($dst), ($x)) )
-
-compose_reduc_kernel{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:min,(A,)}, dst::Symbol, x::Symbol) = :( ($dst) = min(($dst), ($x)) )
-
-compose_reduc_kernel{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:mean,(A,)}, dst::Symbol, x::Symbol) = :( ($dst) += ($x) )
-
-
-# post-processers
-
-compose_reduc_post{F,Args<:(AbstractDeExpr...,)}(ctx::ScalarContext, 
-	rhs::DeCall{F,Args}, dst::Symbol, n::Symbol) = :( )
-
-compose_reduc_post{A<:AbstractDeExpr}(ctx::ScalarContext, 
-	rhs::DeCall{:mean,(A,)}, dst::Symbol, n::Symbol) = :( ($dst) /= ($n) )
-
+function compose_reduc_post(ctx::ScalarContext, rhs::TCall, dst::Symbol, n::Symbol)
+	f = rhs.fun
+	f == (:mean) ? :( ($dst) /= ($n) ) :
+	:()
+end
 
 # integrated
 
-function de_compile_fullreduc{F,A<:AbstractDeExpr}(ctx::ScalarContext, 
-	lhs::DeTerminal, rhs::DeCall{F,(A,)})
+function de_compile_fullreduc(ctx::ScalarContext, lhs::TSym, rhs::TCall)
 
 	# code for setup
 
-	dst = lhs.sym
+	dst = lhs.e
 	ty_infer = gen_type_inference(rhs)
 	siz_infer = gen_size_inference(rhs)
 	
@@ -296,10 +282,8 @@ function de_compile_fullreduc{F,A<:AbstractDeExpr}(ctx::ScalarContext,
 end
 
 
-de_compile_reduc(ctx::ScalarContext, 
-	lhs::DeTerminal,
-	rhs::DeCall) = de_compile_fullreduc(ctx, lhs, rhs)
-
+de_compile_reduc(ctx::ScalarContext, lhs::TSym,
+	rhs::TCall) = de_compile_fullreduc(ctx, lhs, rhs)
 
 
 ##########################################################################
