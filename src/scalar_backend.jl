@@ -179,15 +179,10 @@ function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::DeTerminal, rhs::DeC
 	
 end
 
-function de_compile(::ScalarContext, assign_ex::Expr)
-	# generate codes for cases where lhs is pre-allocated in correct size and type
-	
-	if !(assign_ex.head == :(=))
-		throw(DeError("Top level expression must be an assignment"))
-	end
-	
-	lhs = de_wrap(assign_ex.args[1])
-	rhs = de_wrap(assign_ex.args[2])
+
+function de_compile(::ScalarContext, top_expr::DeAssign)
+	lhs = top_expr.lhs
+	rhs = top_expr.rhs
 
 	if isa(lhs, DeTerminal)
 		
@@ -214,6 +209,7 @@ function de_compile(::ScalarContext, assign_ex::Expr)
 		throw(DeError("the form of right-hand-side is unsupported"))
 	end
 end
+
 
 
 ##########################################################################

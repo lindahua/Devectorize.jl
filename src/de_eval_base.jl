@@ -20,13 +20,18 @@ end
 type DeColon <: AbstractDeExpr
 end
 
-type DeRef{NA} <: AbstractDeExpr
+type DeRef{Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
 	host::Symbol
-	args
+	args::Args
 end
 
 type DeCall{F, Args<:(AbstractDeExpr...,)} <: AbstractDeExpr
 	args::Args
+end
+
+type DeAssign{Lhs<:AbstractDeExpr, Rhs<:AbstractDeExpr} <: AbstractDeExpr
+	lhs::Lhs
+	rhs::Rhs
 end
 
 # convenient functions
@@ -38,6 +43,11 @@ end
 function de_ref{Args<:(AbstractDeExpr...,)}(h::Symbol, args::Args)
 	DeRef{Args}(h, args)	
 end
+
+function de_assign{Lhs<:AbstractDeExpr, Rhs<:AbstractDeExpr}(lhs::Lhs, rhs::Rhs)
+	DeAssign{Lhs, Rhs}(lhs, rhs)
+end
+
 
 fsym{F,Args}(::DeCall{F,Args}) = F
 
@@ -119,6 +129,10 @@ end
 
 wrap_ref_arg(a::Symbol) = (a == :(:) ? DeColon() : DeTerminal(a))
 
+is_supported_lhs(::AbstractDeExpr) = false
+is_supported_lhs(::DeTerminal) = true
+is_supported_lhs(::DeRef{(DeColon,)}) = true
+
 function de_wrap(ex::Expr) 
 
 	if ex.head == :(call)
@@ -151,6 +165,19 @@ function de_wrap(ex::Expr)
 			w2 = wrap_ref_arg(a2)
 			de_ref(hsym, (w1, w2))
 		end
+
+	elseif ex.head == :(=)
+
+		@assert length(ex.args) == 2
+		lhs = de_wrap(ex.args[1])
+		rhs = de_wrap(ex.args[2])
+
+		if !is_supported_lhs(lhs)
+			throw(DeError("Left-hand-side in current form is unsupported in DeExpr"))
+		end
+
+		de_assign(lhs, rhs)
+
 	else
 		throw(DeError("Unrecognized expression: $ex"))
 	end
@@ -275,6 +302,20 @@ abstract EvalContext
 
 abstract CPUContext <: EvalContext
 abstract GPUContext <: EvalContext
+
+# generic function for delayed expression compilation
+
+function de_compile(ctx::EvalContext, top_expr::Expr)
+	# generate codes for cases where lhs is pre-allocated in correct size and type
+	
+	if !(top_expr.head == :(=))
+		throw(DeError("Top level expression must be an assignment"))
+	end
+	
+	de_compile(ctx, de_wrap(top_expr))
+end
+
+
 
 
 
