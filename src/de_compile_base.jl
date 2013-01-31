@@ -68,13 +68,19 @@ function de_compile(ctx::EvalContext, top_expr::DeAssign)
 end
 
 
+
+##########################################################################
+#
+#  CPU-specific code composition
+#
+##########################################################################
+
 function de_compile_ewise(ctx::CPUContext, 
-	lhs::DeTerminal,
-	rhs::AbstractDeExpr) 
+	lhs::DeTerminal, rhs::AbstractDeExpr) 
 
 	dst = lhs.sym
-	ty_infer = gen_type_inference(rhs.args[1])
-	size_infer = gen_size_inference(rhs.args[1])
+	ty_infer = gen_type_inference(rhs)
+	size_infer = gen_size_inference(rhs)
 	core_loop = de_compile_ewise_core(ctx, dst, rhs)
 	
 	# compose the whole thing
@@ -110,7 +116,7 @@ function compose_ewise{F,
 	A2<:AbstractDeExpr}(ctx::EvalContext, ex::DeCall{F,(A1,A2)}, sinfo)
 	
 	check_is_ewise(ex)
-		
+	
 	a1_pre, a1_kernel = compose_ewise(ctx, ex.args[1], sinfo)
 	a2_pre, a2_kernel = compose_ewise(ctx, ex.args[2], sinfo)
 	pre = :( $a1_pre, $a2_pre )

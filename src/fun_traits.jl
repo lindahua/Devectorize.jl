@@ -139,7 +139,7 @@ end
 
 # reduction functions
 
-for s in [ :sum, :max, :min, :mean, :normfro ]
+for s in [ :sum, :max, :min, :mean ]
 	@eval $(register_reductor(s, 1))
 end
 

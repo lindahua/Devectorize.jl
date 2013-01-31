@@ -204,13 +204,9 @@ ewise_shape(s1, ::(), s3) = promote_shape(s1, s3)
 ewise_shape(::(), s2, s3) = promote_shape(s2, s3)
 ewise_shape(s1, s2, s3) = promote_shape(promote_shape(s1, s2), s3)
 
-ewise_result_shape(
-	a1::AbstractArray, 
-	a2::AbstractArray, 
-	a3::AbstractArray) = promote_shape( promote_shape(size(a1), size(a2)), size(a3) )
-
 gen_size_inference(ex::DeNumber) = :( () )
 gen_size_inference(ex::DeTerminal) = :( size($(ex.sym)) )
+gen_size_inference(ex::DeAssign) = :( $(gen_size_inference(ex.rhs)) )
 
 gen_size_inference{F,
 	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)}) = :( 
@@ -220,19 +216,19 @@ gen_size_inference{F,
 gen_size_inference{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}) = :( 
-		ewise_shape( 
-			$(gen_size_inference(ex.args[1])), 
-			$(gen_size_inference(ex.args[2])) ) 
+	ewise_shape( 
+		$(gen_size_inference(ex.args[1])), 
+		$(gen_size_inference(ex.args[2])) ) 
 )
 
 gen_size_inference{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr,
 	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)}) = :( 
-		ewise_shape( 
-			$(gen_size_inference(ex.args[1])), 
-			$(gen_size_inference(ex.args[2])),
-			$(gen_size_inference(ex.args[3])) ) 
+	ewise_shape( 
+		$(gen_size_inference(ex.args[1])), 
+		$(gen_size_inference(ex.args[2])),
+		$(gen_size_inference(ex.args[3])) ) 
 )
 
 
@@ -244,27 +240,29 @@ gen_size_inference{F,
 
 gen_type_inference(ex::DeNumber) = :( typeof($(ex.val)) )
 gen_type_inference(ex::DeTerminal) = :( eltype($(ex.sym)) )
+gen_type_inference(ex::DeAssign) = :( $(gen_type_inference(ex.rhs)) )
+
 
 function gen_type_inference{F,
 	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)})
 	
-		t = TFun{F}()
-		:( result_type(
-			$t,
-			$(gen_type_inference(ex.args[1])) 
-		) )
+	t = TFun{F}()
+	:( result_type(
+		$t,
+		$(gen_type_inference(ex.args[1])) 
+	) )
 end
 
 function gen_type_inference{F,
 	A1<:AbstractDeExpr,
 	A2<:AbstractDeExpr}(ex::DeCall{F,(A1,A2)}) 
 	
-		t = TFun{F}()
-		:( result_type(
-			$t,
-			$(gen_type_inference(ex.args[1])),
-			$(gen_type_inference(ex.args[2]))
-		) )
+	t = TFun{F}()
+	:( result_type(
+		$t,
+		$(gen_type_inference(ex.args[1])),
+		$(gen_type_inference(ex.args[2]))
+	) )
 end
 	
 function gen_type_inference{F,
@@ -272,14 +270,16 @@ function gen_type_inference{F,
 	A2<:AbstractDeExpr,
 	A3<:AbstractDeExpr}(ex::DeCall{F,(A1,A2,A3)})
 	
-		t = TFun{F}()
-		:( result_type(
-			$t,
-			$(gen_type_inference(ex.args[1])),
-			$(gen_type_inference(ex.args[2])),
-			$(gen_type_inference(ex.args[3])) 
-		) )
+	t = TFun{F}()
+	:( result_type(
+		$t,
+		$(gen_type_inference(ex.args[1])),
+		$(gen_type_inference(ex.args[2])),
+		$(gen_type_inference(ex.args[3])) 
+	) )
 end
+
+
 
 
 

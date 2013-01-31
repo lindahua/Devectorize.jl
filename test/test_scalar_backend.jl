@@ -50,7 +50,10 @@ println("testing sum of binary expression ...")
 @devec s = sum(cv .* b)
 @test s == cv * sum(b)
 
-println("testing max and min ...")
+println("testing mean, max, min ...")
+
+@devec s = mean(b)
+@test s == mean(b)
 
 @devec s = max(b)
 @test s == max(b)
@@ -63,5 +66,7 @@ println("testing max and min ...")
 
 @devec s = min(c)
 @test s == min(c)
+
+
 
 

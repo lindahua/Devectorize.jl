@@ -13,7 +13,6 @@ export
 	TFun,
 	register_ewise_mathop,
 	register_ewise_pred,
-	register_reductor,
 	
 	# helper functions
 	fsym,
