@@ -10,7 +10,7 @@ c = rand(n)
 r = zeros(n)
 
 ctx = ScalarContext()
-gen = de_generate(ctx, :(r = a + sin(a + b) .* exp(a - c)) )
+gen = de_compile(ctx, :(r = a + sin(a + b) .* exp(a - c)) )
 println("generated de-vectorized code")
 println("---------------------------------")
 println(gen)

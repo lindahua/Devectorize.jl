@@ -303,7 +303,7 @@ abstract EvalContext
 abstract CPUContext <: EvalContext
 abstract GPUContext <: EvalContext
 
-# generic function for delayed expression compilation
+# generic functions for delayed expression compilation
 
 function de_compile(ctx::EvalContext, top_expr::Expr)
 	# generate codes for cases where lhs is pre-allocated in correct size and type
@@ -315,7 +315,34 @@ function de_compile(ctx::EvalContext, top_expr::Expr)
 	de_compile(ctx, de_wrap(top_expr))
 end
 
+function de_compile(ctx::EvalContext, top_expr::DeAssign)
+	lhs = top_expr.lhs
+	rhs = top_expr.rhs
 
+	if isa(lhs, DeTerminal)
+		
+		if isa(rhs, DeCall)
+			if is_reduc_call(rhs)
+				de_compile_reduc(ctx, lhs, rhs)
+			else
+				de_compile_ewise(ctx, lhs, rhs)
+			end
+		else
+			de_compile_ewise(ctx, lhs, rhs)
+		end
+		
+	elseif isa(lhs, DeRef)
+		
+		if length(lhs.args) == 1 && lhs.args[1] == DeColon()
+			de_compile_ewise(ctx, lhs, rhs)
+		else
+			throw(DeError("the form of left-hand-side is unsupported"))
+		end
+		
+	else
+		throw(DeError("the form of right-hand-side is unsupported"))
+	end
+end
 
 
 

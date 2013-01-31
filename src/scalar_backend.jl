@@ -180,35 +180,19 @@ function devec_generate_fullreduc{F,A<:AbstractDeExpr}(lhs::DeTerminal, rhs::DeC
 end
 
 
-function de_compile(::ScalarContext, top_expr::DeAssign)
-	lhs = top_expr.lhs
-	rhs = top_expr.rhs
+# specialized decompile functions
 
-	if isa(lhs, DeTerminal)
-		
-		if isa(rhs, DeCall)
-			nargs = length(rhs.args)
-			if is_reduc_call(rhs)
-				devec_generate_fullreduc(lhs, rhs)
-			else
-				devec_generate_ewise(lhs, rhs)
-			end
-		else
-			devec_generate_ewise(lhs, rhs)
-		end
-		
-	elseif isa(lhs, DeRef)
-		
-		if length(lhs.args) == 1 && lhs.args[1] == DeColon()
-			devec_generate_ewise_core(lhs.host, rhs)
-		else
-			throw(DeError("the form of left-hand-side is unsupported"))
-		end
-		
-	else
-		throw(DeError("the form of right-hand-side is unsupported"))
-	end
-end
+de_compile_ewise(ctx::ScalarContext, 
+	lhs::DeTerminal,
+	rhs::AbstractDeExpr) = devec_generate_ewise(lhs, rhs)
+
+de_compile_ewise(ctx::ScalarContext, 
+	lhs::DeRef{(DeColon,)}, 
+	rhs::AbstractDeExpr) = devec_generate_ewise_core(lhs.host, rhs)
+
+de_compile_reduc(ctx::ScalarContext, 
+	lhs::DeTerminal,
+	rhs::DeCall) = devec_generate_fullreduc(lhs, rhs)
 
 
 
