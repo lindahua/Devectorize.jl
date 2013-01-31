@@ -54,42 +54,10 @@ function de_compile(ctx::EvalContext, top_expr::DeAssign)
 			de_compile_ewise(ctx, lhs, rhs)
 		end
 		
-	elseif isa(lhs, DeRef)
-		
-		if length(lhs.args) == 1 && lhs.args[1] == DeColon()
-			de_compile_ewise(ctx, lhs, rhs)
-		else
-			throw(DeError("the form of left-hand-side is unsupported"))
-		end
-		
 	else
-		throw(DeError("the form of right-hand-side is unsupported"))
+		@assert isa(lhs, DeRef)
+		de_compile_ewise(ctx, lhs, rhs)
 	end
-end
-
-
-
-##########################################################################
-#
-#  CPU-specific code composition
-#
-##########################################################################
-
-function de_compile_ewise(ctx::CPUContext, 
-	lhs::DeTerminal, rhs::AbstractDeExpr) 
-
-	dst = lhs.sym
-	ty_infer = gen_type_inference(rhs)
-	size_infer = gen_size_inference(rhs)
-	core_loop = de_compile_ewise_core(ctx, dst, rhs)
-	
-	# compose the whole thing
-	
-	:(
-		($dst) = Array(($ty_infer), ($size_infer));
-		($core_loop)
-	)
-
 end
 
 

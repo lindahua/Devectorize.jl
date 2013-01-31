@@ -68,5 +68,28 @@ println("testing mean, max, min ...")
 @test s == min(c)
 
 
+println("testing ref expressions on rhs ...")
 
+bt = reshape(b, (1, length(b)))
+@devec r = a + bt[:]
+@test isequal(r, a + b)
+
+bc = [b c]
+i = 2
+@devec r = bc[:,i]
+@test isequal(r, c)
+
+println("testing ref expressions on lhs ...")
+
+r = zeros(size(bc))
+r0 = zeros(size(bc))
+
+@devec r[:,1] = bc[:,1]
+r0[:,1] = bc[:,1]
+@test isequal(r, r0)
+
+i = 2
+@devec r[:,i] = bc[:,i]
+r0[:,i] = bc[:,i]
+@test isequal(r, r0)
 

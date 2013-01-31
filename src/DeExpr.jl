@@ -4,9 +4,11 @@ export
 	# classes to express delayed expressions
 	AbstractDeExpr,
 	DeNumber,
+	DeInt,
 	DeTerminal,
 	DeRef,
 	DeCall,
+	DeAssign,
 
 	# function traits
 	TCall,
@@ -38,7 +40,8 @@ export
 	devec_reader,
 	
 	# macros
-	@devec
+	@devec,
+	@inspect_devec
 	
 include("fun_traits.jl")
 include("de_expr_base.jl")

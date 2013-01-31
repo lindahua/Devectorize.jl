@@ -22,10 +22,13 @@ println("---------------------------------")
 macro my_bench(FName)	
 	quote
 		println("bench: ", $(string(FName)))
-		($FName)(a, b, c, r)  # warming
-		@time for i = 1 : 10
+		local t0 = @elapsed ($FName)(a, b, c, r)  # warming
+		local repeat = 10
+		local t1 = @elapsed for i = 1 : repeat
 			($FName)(a, b, c, r)
 		end
+		println("    initial run = $t0 sec")
+		println("    average run = $(t1 / repeat) sec")
 	end
 end
 

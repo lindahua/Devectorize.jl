@@ -9,9 +9,11 @@
 
 abstract AbstractDeExpr
 
-type DeNumber <: AbstractDeExpr
-	val::Number
+type DeNumber{T<:Number} <: AbstractDeExpr
+	val::T
 end
+
+typealias DeInt DeNumber{Int}
 
 type DeTerminal <: AbstractDeExpr
 	sym::Symbol
@@ -35,6 +37,10 @@ type DeAssign{Lhs<:AbstractDeExpr, Rhs<:AbstractDeExpr} <: AbstractDeExpr
 end
 
 # convenient functions
+
+function de_number{T<:Number}(x::T)
+	DeNumber{T}(x)
+end
 
 function de_call{Args<:(AbstractDeExpr...,)}(f::Symbol, args::Args)
 	DeCall{f,Args}(args)
@@ -118,7 +124,7 @@ end
 #
 ##########################################################################
 
-de_wrap{T<:Number}(x::T) = DeNumber(x)
+de_wrap{T<:Number}(x::T) = DeNumber{T}(x)
 de_wrap(s::Symbol) = DeTerminal(s)
 
 function check_simple_ref(c)
@@ -128,10 +134,13 @@ function check_simple_ref(c)
 end
 
 wrap_ref_arg(a::Symbol) = (a == :(:) ? DeColon() : DeTerminal(a))
+wrap_ref_arg(a::Int) = DeNumber{Int}(a)
 
 is_supported_lhs(::AbstractDeExpr) = false
 is_supported_lhs(::DeTerminal) = true
 is_supported_lhs(::DeRef{(DeColon,)}) = true
+is_supported_lhs(::DeRef{(DeColon,DeInt)}) = true
+is_supported_lhs(::DeRef{(DeColon,DeTerminal)}) = true
 
 function de_wrap(ex::Expr) 
 
@@ -150,16 +159,21 @@ function de_wrap(ex::Expr)
 		check_simple_ref(na == 2 || na == 3)
 
 		hsym = ex.args[1]
+		check_simple_ref(isa(hsym, Symbol))
+
+		SymOrNum = Union(Symbol, Number)
+
 		if na == 2
 			a1 = ex.args[2]
-			check_simple_ref(isa(a1, Symbol))
+			check_simple_ref(isa(a1, SymOrNum))
 
 			w1 = wrap_ref_arg(a1)
 			de_ref(hsym, (w1,))
 		else
 			a1 = ex.args[2]
 			a2 = ex.args[3]
-			check_simple_ref(isa(a1, Symbol) && isa(a2, Symbol))
+
+			check_simple_ref(isa(a1, SymOrNum) && isa(a2, SymOrNum))
 
 			w1 = wrap_ref_arg(a1)
 			w2 = wrap_ref_arg(a2)
@@ -231,6 +245,13 @@ gen_size_inference{F,
 		$(gen_size_inference(ex.args[3])) ) 
 )
 
+# for reference
+
+gen_size_inference(ex::DeRef{(DeColon,)}) = :( (length($(ex.host)),) )
+
+gen_size_inference(ex::DeRef{(DeColon,DeInt)}) = :( (size($(ex.host),1),) )
+gen_size_inference(ex::DeRef{(DeColon,DeTerminal)}) = :( (size($(ex.host),1),) )
+
 
 ##########################################################################
 #
@@ -241,7 +262,7 @@ gen_size_inference{F,
 gen_type_inference(ex::DeNumber) = :( typeof($(ex.val)) )
 gen_type_inference(ex::DeTerminal) = :( eltype($(ex.sym)) )
 gen_type_inference(ex::DeAssign) = :( $(gen_type_inference(ex.rhs)) )
-
+gen_type_inference(ex::DeRef) = :( eltype($(ex.host)) )
 
 function gen_type_inference{F,
 	A1<:AbstractDeExpr}(ex::DeCall{F,(A1,)})
