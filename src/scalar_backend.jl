@@ -222,18 +222,18 @@ de_compile_ewise(ctx::ScalarContext, lhs::TRef{(TSym,TColon)},
 
 function compose_reduc_init(ctx::ScalarContext, rhs::TCall, dst::Symbol, ty::Symbol)
 	f = rhs.fun
-	f == (:sum) ?  :( ($dst) = zero($ty) ) :
-	f == (:max) ?  :( ($dst) = typemin($ty) ) :
-	f == (:min) ?  :( ($dst) = typemax($ty) ) :
+	f == (:sum)  ? :( ($dst) = zero($ty) ) :
+	f == (:max)  ? :( ($dst) = typemin($ty) ) :
+	f == (:min)  ? :( ($dst) = typemax($ty) ) :
 	f == (:mean) ? :( ($dst) = zero($ty) ) :
 	:()
 end
 
 function compose_reduc_kernel(ctx::ScalarContext, rhs::TCall, dst::Symbol, x::Symbol)
 	f = rhs.fun
-	f == (:sum) ?  :( ($dst) += ($x) ) :
-	f == (:max) ?  :( ($dst) = max(($dst), ($x)) ) :
-	f == (:min) ?  :( ($dst) = min(($dst), ($x)) ) :
+	f == (:sum)  ? :( ($dst) += ($x) ) :
+	f == (:max)  ? :( ($dst) = max(($dst), ($x)) ) :
+	f == (:min)  ? :( ($dst) = min(($dst), ($x)) ) :
 	f == (:mean) ? :( ($dst) += ($x) ) :
 	:()
 end
