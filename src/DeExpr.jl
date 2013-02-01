@@ -29,8 +29,8 @@ export
 	
 	# evaluation context abstract classes
 	EvalContext,
-	CPUContext,
-	GPUContext,
+	DirectContext,
+	OffshoreContext,
 	
 	# Scalar back-end
 	ScalarContext,
@@ -45,6 +45,7 @@ export
 	
 include("fun_traits.jl")
 include("de_meta.jl")
+include("texpr_analysis.jl")
 include("de_compile_base.jl")
 include("scalar_backend.jl")
 

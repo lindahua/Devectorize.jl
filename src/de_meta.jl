@@ -273,24 +273,18 @@ end
 #
 ##########################################################################
 
-gen_type_inference(rt::Symbol, ex::TNum) = :( ($rt) = typeof($(ex.e)) )
-gen_type_inference(rt::Symbol, ex::TSym) = :( ($rt) = eltype($(ex.e)) )
-gen_type_inference(rt::Symbol, ex::TAssign) = :( ($rt) = $(gen_type_inference(rt, ex.rhs)) )
-gen_type_inference(rt::Symbol, ex::TRef) = :( ($rt) = eltype($(ex.host)) )
+gen_type_inference(ex::TNum) = :( typeof($(ex.e)) )
+gen_type_inference(ex::TSym) = :( eltype($(ex.e)) )
+gen_type_inference(ex::TAssign) = :( $(gen_type_inference(ex.rhs)) )
+gen_type_inference(ex::TRef) = :( eltype($(ex.host)) )
 
 
-function gen_type_inference(rt::Symbol, ex::TCall) 
+function gen_type_inference(ex::TCall) 
 
 	tf = TFun{ex.fun}()
+	argty_exprs = [gen_type_inference(a) for a in ex.args]
 
-	na = length(ex.args)
-	tas = [gensym("ta$i") for i = 1 : na]
-	argty_stmts = [gen_type_inference(tas[i], ex.args[i]) for i = 1 : na]
-
-	create_code_block( 
-		argty_stmts...,
-		create_assignment(rt, create_fun_call(:result_type, tf, tas...)) 
-	)
+	create_fun_call(:result_type, tf, argty_exprs...) 
 end
 
 

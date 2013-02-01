@@ -12,6 +12,7 @@ c = [9., 8., 7., 6.]
 cv = 12.0
 
 println("testing unary expression ...")
+#println(de_compile(ScalarContext(), :(r1 = -a)))
 @devec r1 = -a
 @test isequal(r1, -a)
 
@@ -120,8 +121,8 @@ r0[i,:] = bct[i,:]
 
 println("testing [:,:] reference form ...")
 
-#@devec r = bc[:,:]
-#@test isequal(r, bc)
+@devec r = bc[:,:]
+@test isequal(r, bc)
 
 r2 = similar(bc)
 @devec r2[:,:] = bc
