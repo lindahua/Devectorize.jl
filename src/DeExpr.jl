@@ -21,11 +21,11 @@ export
 	de_expr,
 	ewise_shape,
 	result_type,
+	get,
 	
 	# core functions
 	texpr,
 	de_compile,
-	get,
 	
 	# evaluation context abstract classes
 	EvalContext,
@@ -42,7 +42,6 @@ export
 	@devec,
 	@inspect_devec
 
-import Base.get
 	
 include("fun_traits.jl")
 include("de_meta.jl")

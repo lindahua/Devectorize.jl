@@ -81,12 +81,24 @@ end
 
 ##########################################################################
 #
-# 	exception types
+# 	supporting facility
 #
 ##########################################################################
 
 type DeError <: Exception
 	msg::ASCIIString
+end
+
+function create_code_block(stmts...)
+	expr(:block, stmts...)
+end
+
+function create_fun_call(funsym, args...)
+	expr(:call, funsym, args...)
+end
+
+function create_assignment(lhs, rhs)
+	expr(:(=), lhs, rhs)
 end
 
 
@@ -226,36 +238,33 @@ ewise_shape(s1, ::(), s3) = promote_shape(s1, s3)
 ewise_shape(::(), s2, s3) = promote_shape(s2, s3)
 ewise_shape(s1, s2, s3) = promote_shape(promote_shape(s1, s2), s3)
 
+ewise_shape(s1, s2, s3, s4...) = promote_shape(ewise_shape(s1, s2), ewise_shape(s3, s4...))
+
 gen_size_inference(ex::TNum) = :( () )
 gen_size_inference(ex::TSym) = :( size($(ex.e)) )
 gen_size_inference(ex::TAssign) = :( $(gen_size_inference(ex.rhs)) )
 
-gen_size_inference{A1<:TExpr}(ex::TCall{(A1,)}) = :( 
-		$(gen_size_inference(ex.args[1])) 
-)
-	
-gen_size_inference{A1<:TExpr, A2<:TExpr}(ex::TCall{(A1,A2)}) = :( 
-	ewise_shape( 
-		$(gen_size_inference(ex.args[1])), 
-		$(gen_size_inference(ex.args[2])) ) 
-)
-
-gen_size_inference{A1<:TExpr, A2<:TExpr, A3<:TExpr}(ex::TCall{(A1,A2,A3)}) = :( 
-	ewise_shape( 
-		$(gen_size_inference(ex.args[1])), 
-		$(gen_size_inference(ex.args[2])),
-		$(gen_size_inference(ex.args[3])) ) 
-)
-
-# for reference
-
 gen_size_inference(ex::TRef{(TColon,)}) = :( (length($(ex.host)),) )
 gen_size_inference(ex::TRef{(TColon, TColon)}) = :( size($(ex.host)) )
+
+# for reference
 
 gen_size_inference(ex::TRef{(TColon,TInt)}) = :( (size($(ex.host),1),) )
 gen_size_inference(ex::TRef{(TColon,TSym)}) = :( (size($(ex.host),1),) )
 gen_size_inference(ex::TRef{(TInt, TColon)}) = :( (1, size($(ex.host),2)) )
 gen_size_inference(ex::TRef{(TSym, TColon)}) = :( (1, size($(ex.host),2)) )
+
+# for function call
+
+gen_size_inference{A1<:TExpr}(ex::TCall{(A1,)}) = :( 
+		$(gen_size_inference(ex.args[1])) 
+)
+	
+function gen_size_inference(ex::TCall) 
+	arg_stmts = [gen_size_inference(a) for a in ex.args]
+	create_fun_call(:ewise_shape, arg_stmts...)
+end
+
 
 
 ##########################################################################
@@ -264,45 +273,24 @@ gen_size_inference(ex::TRef{(TSym, TColon)}) = :( (1, size($(ex.host),2)) )
 #
 ##########################################################################
 
-gen_type_inference(ex::TNum) = :( typeof($(ex.e)) )
-gen_type_inference(ex::TSym) = :( eltype($(ex.e)) )
-gen_type_inference(ex::TAssign) = :( $(gen_type_inference(ex.rhs)) )
-gen_type_inference(ex::TRef) = :( eltype($(ex.host)) )
+gen_type_inference(rt::Symbol, ex::TNum) = :( ($rt) = typeof($(ex.e)) )
+gen_type_inference(rt::Symbol, ex::TSym) = :( ($rt) = eltype($(ex.e)) )
+gen_type_inference(rt::Symbol, ex::TAssign) = :( ($rt) = $(gen_type_inference(rt, ex.rhs)) )
+gen_type_inference(rt::Symbol, ex::TRef) = :( ($rt) = eltype($(ex.host)) )
 
-function gen_type_inference{A1<:TExpr}(ex::TCall{(A1,)})
-	
-	t = TFun{ex.fun}()
-	:( result_type(
-		$t,
-		$(gen_type_inference(ex.args[1])) 
-	) )
+
+function gen_type_inference(rt::Symbol, ex::TCall) 
+
+	tf = TFun{ex.fun}()
+
+	na = length(ex.args)
+	tas = [gensym("ta$i") for i = 1 : na]
+	argty_stmts = [gen_type_inference(tas[i], ex.args[i]) for i = 1 : na]
+
+	create_code_block( 
+		argty_stmts...,
+		create_assignment(rt, create_fun_call(:result_type, tf, tas...)) 
+	)
 end
-
-function gen_type_inference{A1<:TExpr,A2<:TExpr}(ex::TCall{(A1,A2)}) 
-	
-	t = TFun{ex.fun}()
-	:( result_type(
-		$t,
-		$(gen_type_inference(ex.args[1])),
-		$(gen_type_inference(ex.args[2]))
-	) )
-end
-	
-function gen_type_inference{A1<:TExpr,A2<:TExpr,A3<:TExpr}(ex::TCall{(A1,A2,A3)})
-	
-	t = TFun{ex.fun}()
-	:( result_type(
-		$t,
-		$(gen_type_inference(ex.args[1])),
-		$(gen_type_inference(ex.args[2])),
-		$(gen_type_inference(ex.args[3])) 
-	) )
-end
-
-
-
-
-
-
 
 

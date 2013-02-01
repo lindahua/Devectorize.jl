@@ -17,6 +17,7 @@ get_op_kind{S,N}(::TCallSig{S,N}) = nothing
 #
 #########################################################################
 
+
 function register_ewise_mathop(sym::Symbol, nargs::Integer)
 	# the function to generate the codes to register a ewise function
 

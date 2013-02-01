@@ -66,6 +66,21 @@ function compose(::ScalarContext, ::EWiseExpr, t::TSym, idx::Symbol)
 	(pre, kernel)
 end
 
+function compose(ctx::ScalarContext, kind::EWiseExpr, ex::TCall, sinfo...)
+	
+	check_is_ewise(ex)
+
+	arg_rets = [compose(ctx, kind, a, sinfo...) for a in ex.args]
+
+	pre_stmts = [r[1] for r in arg_rets]
+	ker_args = [r[2] for r in arg_rets]
+
+	pre = create_code_block(pre_stmts...)
+	kernel = create_fun_call(ex.fun, ker_args...)
+
+	(pre, kernel)
+end
+
 function compose(::ScalarContext, ::EWiseExpr, ex::TRef{(TColon,)}, idx::Symbol)
 	@gensym rd
 	pre = :( ($rd) = de_arr($(ex.host)) )
@@ -185,11 +200,11 @@ function compose_lhs_init(ctx::ScalarContext, ::EWiseExpr, lhs::TSym, rhs::TExpr
 
 	@gensym ty siz
 
-	ty_infer = gen_type_inference(rhs)
+	ty_infer = gen_type_inference(ty, rhs)
 	siz_infer = gen_size_inference(rhs)
 
 	quote
-		($ty) = ($ty_infer)
+		($ty_infer)
 		($siz) = ($siz_infer)
 		($(lhs.e)) = Array(($ty), ($siz))
 	end
@@ -254,11 +269,11 @@ function compose_lhs_init(ctx::ScalarContext, ::ReducExpr, lhs::TSym, rhs::TExpr
 	@gensym ty
 
 	dst = lhs.e
-	ty_infer = gen_type_inference(rhs)
+	ty_infer = gen_type_inference(ty, rhs)
 	init = compose_reduc_init(ctx, rhs, dst, ty)
 
 	quote
-		($ty) = ($ty_infer)
+		($ty_infer)
 		($init)
 	end
 end

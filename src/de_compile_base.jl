@@ -81,8 +81,6 @@ function analyze_expr(top_expr::TAssign)
 end
 
 
-
-
 ##########################################################################
 #
 #  Top level compilation skeletons
@@ -116,53 +114,5 @@ function de_compile(ctx::EvalContext, top_expr::TAssign)
 		($main_loop)
 	end
 end
-
-
-##########################################################################
-#
-#  Middle level code composition
-#
-##########################################################################
-
-
-function compose{A1<:TExpr}(ctx::EvalContext, kind::EWiseExpr, ex::TCall{(A1,)}, sinfo...)
-	
-	check_is_ewise(ex)
-		
-	a1_pre, a1_kernel = compose(ctx, kind, ex.args[1], sinfo...)
-	pre = a1_pre
-	kernel = :( ($(ex.fun))( $a1_kernel ) )
-	(pre, kernel)
-end
-
-function compose{A1<:TExpr,A2<:TExpr}(ctx::EvalContext, kind::EWiseExpr, ex::TCall{(A1,A2)}, sinfo...)
-	
-	check_is_ewise(ex)
-	
-	a1_pre, a1_kernel = compose(ctx, kind, ex.args[1], sinfo...)
-	a2_pre, a2_kernel = compose(ctx, kind, ex.args[2], sinfo...)
-	pre = :( $a1_pre, $a2_pre )
-	kernel = :( ($(ex.fun))( $a1_kernel, $a2_kernel ) )
-	(pre, kernel)
-end
-
-function compose{A1<:TExpr,A2<:TExpr,A3<:TExpr}(ctx::EvalContext, kind::EWiseExpr, ex::TCall{(A1,A2,A3)}, sinfo...)
-	
-	check_is_ewise(ex)
-		
-	a1_pre, a1_kernel = compose(ctx, kind, ex.args[1], sinfo...)
-	a2_pre, a2_kernel = compose(ctx, kind, ex.args[2], sinfo...)
-	a3_pre, a3_kernel = compose(ctx, kind, ex.args[3], sinfo...)
-	
-	pre = :( $a1_pre, $a2_pre, $a3_pre )
-	kernel = :( ($(ex.fun))( $a1_kernel, $a2_kernel, $a3_kernel ) )
-	(pre, kernel)
-end
-
-
-
-
-
-
 
 
