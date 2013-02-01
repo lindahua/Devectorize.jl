@@ -92,7 +92,6 @@ i = 2
 @devec r = bct[i, :]
 @test isequal(r, ct)
 
-
 println("testing ref expressions on lhs ...")
 
 r = zeros(size(bc))
@@ -119,3 +118,15 @@ r[i,:] = bct[i,:]
 r0[i,:] = bct[i,:]
 @test isequal(r, r0)
 
+println("testing [:,:] reference form ...")
+
+#@devec r = bc[:,:]
+#@test isequal(r, bc)
+
+r2 = similar(bc)
+@devec r2[:,:] = bc
+@test isequal(r2, bc)
+
+r2[:] = 0
+@devec r2[:,:] = bc[:,:]
+@test isequal(r2, bc)

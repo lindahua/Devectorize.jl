@@ -134,7 +134,7 @@ end
 
 function compose(::ScalarContext, ::EWiseExpr, ex::TRef{(TColon,TColon)}, i::Symbol, j::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_arr($(t.host)) )
+	pre = :( ($rd) = de_arr($(ex.host)) )
 	kernel = :( get($rd, $i, $j) )
 	(pre, kernel)
 end
@@ -178,6 +178,13 @@ function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TSym,TColon)}, idx::Symbo
 	)
 end
 
+# left hand side 2D
+
+function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TColon,TColon)}, i::Symbol, j::Symbol)
+	(	:( size($(lhs.host)) ),
+		:( $(lhs.host)[$(i), $(j)] )
+	)
+end
 
 
 function de_compile_ewise_1d(ctx::ScalarContext, lhs::TExpr, rhs::TExpr)
@@ -195,6 +202,25 @@ function de_compile_ewise_1d(ctx::ScalarContext, lhs::TExpr, rhs::TExpr)
 		end
 	end
 end
+
+function de_compile_ewise_2d(ctx::ScalarContext, lhs::TExpr, rhs::TExpr)
+	@gensym i j siz m n
+	lhs_siz, lhs_expr = compose_ewise_lhs(ctx, lhs, i, j)
+	rhs_pre, rhs_kernel = compose(ctx, EWiseExpr(), rhs, i, j)
+
+	# compose the main loop
+
+	quote
+		local $siz = ($lhs_siz)
+		local $m = $siz[1]
+		local $n = $siz[2]
+		$rhs_pre
+		for ($j) = 1 : ($n), ($i) = 1 : ($m)
+			$(lhs_expr) = ($rhs_kernel)
+		end
+	end
+end
+
 
 function compose_lhs_init(ctx::ScalarContext, ::EWiseExpr, lhs::TSym, rhs::TExpr) 
 
@@ -228,6 +254,9 @@ compose_main_loop(ctx::ScalarContext, ::EWiseExpr, lhs::TRef{(TInt,TColon)},
 
 compose_main_loop(ctx::ScalarContext, ::EWiseExpr, lhs::TRef{(TSym,TColon)}, 
 	rhs::TExpr) = de_compile_ewise_1d(ctx, lhs, rhs)
+
+compose_main_loop(ctx::ScalarContext, ::EWiseExpr, lhs::TRef{(TColon,TColon)}, 
+	rhs::TExpr) = de_compile_ewise_2d(ctx, lhs, rhs)
 
 
 ##########################################################################
