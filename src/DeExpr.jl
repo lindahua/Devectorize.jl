@@ -44,7 +44,8 @@ export
 
 	
 include("fun_traits.jl")
-include("de_meta.jl")
+include("texpr.jl")
+include("meta_tools.jl")
 include("texpr_analysis.jl")
 include("de_compile_base.jl")
 include("scalar_backend.jl")
