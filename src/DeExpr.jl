@@ -1,53 +1,30 @@
 module DeExpr
 	
 export
-	# classes to express delayed expressions
-	TExpr,
-	TNum,
-	TInt,
-	TSym,
-	TRef,
-	TCall,
-	TAssign,
-
-	# function traits
-	TCallSig,
+	# fun_traits
 	TFun,
-	register_ewise_mathop,
-	register_ewise_pred,
-	
-	# helper functions
-	pretty,
-	de_expr,
-	ewise_shape,
+	TCallSig,
 	result_type,
-	get,
-	
-	# core functions
-	texpr,
-	de_compile,
-	
-	# evaluation context abstract classes
-	EvalContext,
-	DirectContext,
-	OffshoreContext,
-	
-	# Scalar back-end
-	ScalarContext,
-	de_arr,
-	de_col,
-	de_row,
-	
-	# macros
-	@devec,
-	@inspect_devec
+
+	# texpr
+
+	DeError,
+
+	TExpr, TEWise, TScalar, TIndex, 
+	TMode, ScalarMode, EWiseMode, ReducMode, PReducMode, 
+	TNum, TSym, TScalarSym, TSym,
+	TRefScalar, TRefScalar1, TRefScalar2,
+	TRef, TRef1D, TRef2D, TRefCol, TRefRow,
+	TMap, TReduc, TPReduc, TAssign,
+
+	tmode, 
+	tnum, tsym, tscalarsym, trefscalar, 
+	tref1d, tref2d, trefcol, trefrow,
+	tcall, tassign,
+	texpr
 
 	
 include("fun_traits.jl")
 include("texpr.jl")
-include("meta_tools.jl")
-include("texpr_analysis.jl")
-include("de_compile_base.jl")
-include("scalar_backend.jl")
 
 end
