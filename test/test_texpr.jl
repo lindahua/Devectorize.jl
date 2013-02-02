@@ -165,7 +165,7 @@ end
 @test_te clamp(a[:], 1, c[:]) 	TMap 	EWiseMode{1}()
 @test_te clamp(1, b[:], c[:]) 	TMap 	EWiseMode{1}()
 
-# compound expressions
+# compound ewise expressions
 
 @test_te a + b .* c 	TMap 	EWiseMode{0}()
 @test_te 1 + 2 .* 3 	TMap 	ScalarMode()
@@ -176,6 +176,39 @@ end
 @test_te a + b[:] .* c 		TMap	EWiseMode{1}()
 @test_te a + 3 .* c[:,:]	TMap	EWiseMode{2}()
 @test_te a[0] + 2 .* c[0]	TMap 	ScalarMode()
+
+# reduction expressions
+
+@test_te sum(a) 	TReduc 	ReducMode()
+@test_te mean(a) 	TReduc 	ReducMode()
+@test_te min(a) 	TReduc 	ReducMode()
+@test_te max(a)		TReduc  ReducMode()
+@test_te dot(a, b) 	TReduc  ReducMode()
+
+@test_te sum(1) 	TReduc  ScalarMode()
+@test_te mean(1) 	TReduc 	ScalarMode()
+@test_te min(1) 	TReduc 	ScalarMode()
+@test_te max(1)		TReduc  ScalarMode()
+@test_te dot(1, 2) 	TReduc  ScalarMode()
+
+@test_te sum(a[:]) 		TReduc 	ReducMode()
+@test_te mean(a[:]) 	TReduc 	ReducMode()
+@test_te min(a[:]) 		TReduc 	ReducMode()
+@test_te max(a[:])		TReduc  ReducMode()
+@test_te dot(a, b[:]) 	TReduc  ReducMode()
+
+@test_te sum(a[:,:]) 		TReduc 	ReducMode()
+@test_te mean(a[:,:]) 		TReduc 	ReducMode()
+@test_te min(a[:,:]) 		TReduc 	ReducMode()
+@test_te max(a[:,:])		TReduc  ReducMode()
+@test_te dot(a, b[:,:]) 	TReduc  ReducMode()
+
+@test_te sum(a + b) 	TReduc 	ReducMode()
+@test_te mean(a + b) 	TReduc 	ReducMode()
+@test_te min(a + b) 	TReduc 	ReducMode()
+@test_te max(a + b)		TReduc  ReducMode()
+@test_te dot(a + b, c .* d) 	TReduc  ReducMode()
+
 
 # assignment expressions
 

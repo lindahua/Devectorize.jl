@@ -15,7 +15,7 @@ export
 	TNum, TSym, TScalarSym, TSym,
 	TRefScalar, TRefScalar1, TRefScalar2,
 	TRef, TRef1D, TRef2D, TRefCol, TRefRow,
-	TMap, TReduc, TPReduc, TAssign,
+	TMap, TReduc, TPReduc, TFunCall, TAssign,
 
 	tmode, 
 	tnum, tsym, tscalarsym, trefscalar, 
@@ -26,5 +26,6 @@ export
 	
 include("fun_traits.jl")
 include("texpr.jl")
+include("meta_tools.jl")
 
 end

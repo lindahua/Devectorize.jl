@@ -77,6 +77,7 @@ end
 type TReduc <: TExpr
 	fun::Symbol
 	args::(TEWise...,)
+	arg_mode::TMode
 end
 
 type TPReduc <: TExpr
@@ -84,6 +85,9 @@ type TPReduc <: TExpr
 	args::(TEWise...,)
 	dim::TIndex
 end
+
+typealias TFunCall Union(TMap,TReduc,TPReduc)
+
 
 type TAssign{Lhs<:Union(TSym,TRef), Rhs<:TExpr} <: TExpr
 	lhs::Lhs
@@ -109,7 +113,7 @@ tmode(ex::TRefCol) = EWiseMode{1}()
 tmode(ex::TRefRow) = EWiseMode{1}()
 
 tmode(ex::TMap) = ex.mode
-tmode(ex::TReduc) = ReducMode()
+tmode(ex::TReduc) = isa(ex.arg_mode, ScalarMode) ? ScalarMode() : ReducMode()
 tmode(ex::TPReduc) = PReducMode()
 
 tmode(ex::TAssign) = ex.mode
@@ -175,10 +179,11 @@ function tcall(f::Symbol, args::(TExpr...,))
 
 	elseif is_reduc_call(f, n)
 		check_all_ewise_args(args)
-		TReduc(f, args)
+		arg_mode = promote_ewise_tmode([tmode(a) for a in args]...)
+		TReduc(f, args, arg_mode)
 
 	else
-		throw(DeError("Unrecognized function $f (in DeExpr)"))
+		throw(DeError("Unrecognized function $f with $n arguments (in DeExpr)"))
 	end
 end
 

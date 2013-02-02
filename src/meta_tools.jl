@@ -26,6 +26,8 @@ end
 #
 ##########################################################################
 
+# ewise_shape 
+
 ewise_shape(s) = s
 
 ewise_shape(::(), ::()) = ()
@@ -44,28 +46,20 @@ ewise_shape(s1, s2, s3) = promote_shape(promote_shape(s1, s2), s3)
 
 ewise_shape(s1, s2, s3, s4...) = promote_shape(ewise_shape(s1, s2), ewise_shape(s3, s4...))
 
-gen_size_inference(ex::TNum) = :( () )
-gen_size_inference(ex::TSym) = :( size($(ex.e)) )
-gen_size_inference(ex::TAssign) = :( $(gen_size_inference(ex.rhs)) )
+# the hyper-function to generate codes for size inference
 
-gen_size_inference(ex::TRef{(TColon,)}) = :( (length($(ex.host)),) )
-gen_size_inference(ex::TRef{(TColon, TColon)}) = :( size($(ex.host)) )
+size_inference(ex::TScalar) = :( () )
+size_inference(ex::TSym) = :( size($(ex.e)) )
 
-# for reference
+size_inference(ex::TRef1D) = :( (length($(ex.host)),) )
+size_inference(ex::TRefCol) = :( (size($(ex.host),1),) )
+size_inference(ex::TRefRow) = :( (1, size($(ex.host),2)) )
+size_inference(ex::TRef2D) = :( size($(ex.host)) )
 
-gen_size_inference(ex::TRef{(TColon,TInt)}) = :( (size($(ex.host),1),) )
-gen_size_inference(ex::TRef{(TColon,TSym)}) = :( (size($(ex.host),1),) )
-gen_size_inference(ex::TRef{(TInt, TColon)}) = :( (1, size($(ex.host),2)) )
-gen_size_inference(ex::TRef{(TSym, TColon)}) = :( (1, size($(ex.host),2)) )
+size_inference(ex::TAssign) = :( $(size_inference(ex.rhs)) )
 
-# for function call
-
-gen_size_inference{A1<:TExpr}(ex::TCall{(A1,)}) = :( 
-		$(gen_size_inference(ex.args[1])) 
-)
-	
-function gen_size_inference(ex::TCall) 
-	arg_stmts = [gen_size_inference(a) for a in ex.args]
+function size_inference(ex::TMap) 
+	arg_stmts = [size_inference(a) for a in ex.args]
 	create_fun_call(:ewise_shape, arg_stmts...)
 end
 
@@ -76,16 +70,17 @@ end
 #
 ##########################################################################
 
-gen_type_inference(ex::TNum) = :( typeof($(ex.e)) )
-gen_type_inference(ex::TSym) = :( eltype($(ex.e)) )
-gen_type_inference(ex::TAssign) = :( $(gen_type_inference(ex.rhs)) )
-gen_type_inference(ex::TRef) = :( eltype($(ex.host)) )
+type_inference(ex::TNum) = :( typeof($(ex.e)) )
+type_inference(ex::TSym) = :( eltype($(ex.e)) )
+type_inference(ex::TRefScalar) = :( eltype($(ex.host)) )
+type_inference(ex::TRef) = :( eltype($(ex.host)) )
 
+type_inference(ex::TAssign) = :( $(gen_type_inference(ex.rhs)) )
 
-function gen_type_inference(ex::TCall) 
+function type_inference(ex::TFunCall) 
 
 	tf = TFun{ex.fun}()
-	argty_exprs = [gen_type_inference(a) for a in ex.args]
+	argty_exprs = [type_inference(a) for a in ex.args]
 
 	create_fun_call(:result_type, tf, argty_exprs...) 
 end
