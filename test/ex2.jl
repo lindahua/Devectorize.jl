@@ -1,7 +1,6 @@
 
 using DeExpr
 
-
 #e = de_wrap(:(a + (2 * b)))
 
 n = 1000000
@@ -10,7 +9,7 @@ b = rand(n)
 c = rand(n)
 r = zeros(n)
 
-ex = :( a + sin(a + b) .* exp(a - c) )
+ex = :( sum(a + sin(a + b) .* exp(a - c)) )
 println("Element-wise: $ex")
 
 macro my_bench(FName)	
@@ -27,18 +26,19 @@ macro my_bench(FName)
 end
 
 function use_rawloop{T<:Real}(a::Array{T}, b::Array{T}, c::Array{T}, r::Array{T})
-	i = length(r)
+	s = zero(T)
 	for i = 1 : n
-		r[i] = a[i] + sin(a[i] + b[i]) * exp(a[i] - c[i])
+		s += (a[i] + sin(a[i] + b[i]) * exp(a[i] - c[i]))
 	end
+	return s
 end
 
 function use_vectorized{T<:Real}(a::Array{T}, b::Array{T}, c::Array{T}, r::Array{T})
-	r = a + sin(a + b) .* exp(a - c)
+	s = sum(a + sin(a + b) .* exp(a - c))
 end
 
 function use_devec{T<:Real}(a::Array{T}, b::Array{T}, c::Array{T}, r::Array{T})
-	@devec r = a + sin(a + b) .* exp(a - c)
+	@devec s = sum(a + sin(a + b) .* exp(a - c))
 end
 
 @my_bench use_rawloop

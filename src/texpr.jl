@@ -89,7 +89,7 @@ end
 typealias TFunCall Union(TMap,TReduc,TPReduc)
 
 
-type TAssign{Lhs<:Union(TSym,TRef), Rhs<:TExpr} <: TExpr
+type TAssign{Lhs<:Union(TSym,TRefScalar,TRef), Rhs<:TExpr} <: TExpr
 	lhs::Lhs
 	rhs::Rhs
 	mode::TMode

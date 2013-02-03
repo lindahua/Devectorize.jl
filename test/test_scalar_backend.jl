@@ -1,133 +1,258 @@
 # Test scalar-backend
 
-#require("../src/de_eval_base.jl")
-#require("../src/scalar_backend.jl")
-
-using DeExpr
+import DeExpr
+import DeExpr.@devec
+import DeExpr.@inspect_devec
 using Test
+
+# tools to help testing
+
+function dump_devec(ex::Expr)
+	println(DeExpr.compile(DeExpr.ScalarContext(), ex))
+end
+
+
+#data
 
 a = [1., 2., 3., 4.]
 b = [3., 4., 5., 6.]
 c = [9., 8., 7., 6.]
 cv = 12.0
+cv_a = [12., 12., 12., 12.]
 
-println("testing unary expression ...")
-#println(de_compile(ScalarContext(), :(r1 = -a)))
-@devec r1 = -a
-@test isequal(r1, -a)
+abc = [a b c]
 
-println("testing binary expression ...")
-@devec r2 = a .* b
-@test isequal(r2, a .* b)
-r2_0 = r2
-@devec r2[:] = a + b
-@test r2 === r2_0
-@test isequal(r2, a + b)
-
-println("testing ternary expression ...")
-@devec r3 = +(a, b, c)
-@test isequal(r3, a + b + c)
-r3_0 = r3
-@devec r3[:] = +(a, b, c)
-@test r3 === r3_0
-
-println("testing compound expression ...")
-@devec r4 = (a .* a + b .* b) - (a .* b .* c)
-rr4 = (a .* a + b .* b) - (a .* b .* c)
-@test isequal(r4, rr4)
-
-println("testing sum of unary expression ...")
-@devec s = sum(b)
-@test s == sum(b)
-
-println("testing sum of binary expression ...")
-
-@devec s = sum(b .* c)
-@test s == dot(b, c)
-
-@devec s = sum(b .* cv)
-@test s == cv * sum(b)
-
-@devec s = sum(cv .* b)
-@test s == cv * sum(b)
-
-println("testing mean, max, min ...")
-
-@devec s = mean(b)
-@test s == mean(b)
-
-@devec s = max(b)
-@test s == max(b)
-
-@devec s = max(c)
-@test s == max(c)
-
-@devec s = min(b)
-@test s == min(b)
-
-@devec s = min(c)
-@test s == min(c)
-
-
-println("testing ref expressions on rhs ...")
-
+at = a'
 bt = b'
 ct = c'
+abct = [at, bt, ct]
 
-@devec r = a + bt[:]
-@test isequal(r, a + b)
 
-bc = [b c]
-@devec r = bc[:,1]
+#################################################
+#
+#	simple expressions
+#
+#################################################
+
+#dump_devec(:(r = a))
+@devec r = a
+@test isequal(r, a)
+
+r0 = r
+@devec r[:] = b
+@test r === r0
 @test isequal(r, b)
 
-i = 2
-@devec r = bc[:,i]
-@test isequal(r, c)
+@devec r[:] = 12.
+@test isequal(r, cv_a)
 
-bct = [bt; ct]
-@devec r = bct[1, :]
+@devec r[:] = cv
+@test isequal(r, cv_a)
+
+
+#################################################
+#
+#	reference expressions
+#
+#################################################
+
+# 0D
+
+r = similar(a)
+@devec r[:] = a[3]
+@test isequal(r, fill(a[3], size(a)))
+
+i = 2
+@devec r[:] = a[i]
+@test isequal(r, fill(a[i], size(a)))
+
+@devec r[:] = abc[1,3]
+@test isequal(r, fill(c[1], size(a)))
+
+i = 2
+@devec r[:] = abc[i,3]
+@test isequal(r, fill(c[i], size(a)))
+
+@devec r[:] = abc[2,i]
+@test isequal(r, fill(b[2], size(a)))
+
+j = 1
+@devec r[:] = abc[i, j]
+@test isequal(r, fill(a[i], size(a)))
+
+
+# 1D
+
+@devec r = a[:]
+@test isequal(r, a)
+
+@devec r[:] = b[:]
+@test isequal(r, b)
+
+@devec r[:] = abc[:,1]
+@test isequal(r, a)
+
+i = 2
+@devec r[:] = abc[:,i]
+@test isequal(r, b)
+
+@devec r = abct[1, :]
+@test isequal(r, at)
+
+i = 2
+@devec r[:] = abct[i, :]
 @test isequal(r, bt)
 
-i = 2
-@devec r = bct[i, :]
-@test isequal(r, ct)
+# 2D
 
-println("testing ref expressions on lhs ...")
+@devec r = abc[:,:]
+@test isequal(r, abc)
 
-r = zeros(size(bc))
-r0 = zeros(size(bc))
+r0 = r
+@devec r[:,:] = 1.
+@test isequal(r, fill(1., size(abc)))
+@test r === r0
 
-@devec r[:,1] = bc[:,1]
-r0[:,1] = bc[:,1]
-@test isequal(r, r0)
+@devec r[:,:] = cv
+@test isequal(r, fill(cv, size(abc)))
 
-i = 2
-@devec r[:,i] = bc[:,i]
-r0[:,i] = bc[:,i]
-@test isequal(r, r0)
-
-r = zeros(size(bct))
-r0 = zeros(size(bct))
-
-@devec r[1,:] = bct[1,:]
-r0[1,:] = bct[1,:]
-@test isequal(r, r0)
+@devec r[:,:] = abc
+@test isequal(r, abc)
+@test r === r0
 
 i = 2
-r[i,:] = bct[i,:]
-r0[i,:] = bct[i,:]
-@test isequal(r, r0)
+j = 3
+@devec r[:,:] = abc[i,j]
+@test isequal(r, fill(c[2], size(abc)))
 
-println("testing [:,:] reference form ...")
 
-@devec r = bc[:,:]
-@test isequal(r, bc)
+#################################################
+#
+#	element-wise maps
+#
+#################################################
 
-r2 = similar(bc)
-@devec r2[:,:] = bc
-@test isequal(r2, bc)
+# unary
 
-r2[:] = 0
-@devec r2[:,:] = bc[:,:]
-@test isequal(r2, bc)
+@devec r = -a
+@test isequal(r, -a)
+
+# binary
+
+@devec r = a + b
+@test isequal(r, a + b)
+
+@devec r = a + 1.
+@test isequal(r, a + 1.)
+
+@devec r = 1. + b
+@test isequal(r, 1. + b)
+
+@devec r[:] = 1. + 2.
+@test isequal(r, fill(3., size(a)))
+
+# ternary
+
+@devec r = +(a, b, c)
+@test isequal(r, a + b + c)
+
+@devec r = +(1., b, c)
+@test isequal(r, 1. + b + c)
+
+@devec r = +(a, 2., c)
+@test isequal(r, a + 2. + c)
+
+@devec r = +(a, b, 3.)
+@test isequal(r, a + b + 3.)
+
+@devec r = +(1., 2., c)
+@test isequal(r, 1. + 2. + c)
+
+@devec r = +(1., b, 3.)
+@test isequal(r, 1. + b + 3.)
+
+@devec r = +(a, 2., 3.)
+@test isequal(r, a + 2. + 3.)
+
+@devec r[:] = +(1., 2., 3.)
+@test isequal(r, fill(6., size(a)))
+
+
+#################################################
+#
+#	special handling of scalars
+#
+#################################################
+
+r = zeros(1)
+
+@devec v = 1.
+@test isequal(v, 1.)
+
+@devec r[1] = 2.
+@test isequal(r, [2.])
+
+@devec v = r[1]
+@test isequal(v, 2.)
+
+r[1] = 0.
+@devec r[1] = v
+@test isequal(r, [v])
+
+r[1] = 0.
+@devec r[1,1] = v
+@test isequal(r, [v])
+
+i = 2
+@devec v = a[i]
+@test isequal(v, a[2])
+
+i = 2
+j = 3
+@devec v = abc[i, j]
+@test isequal(v, c[2])
+
+@devec v = -a[3]
+@test isequal(v, -a[3])
+
+@devec v = 2. + a[3]
+@test isequal(v, 2. + a[3])
+
+
+#################################################
+#
+#	full reduction
+#
+#################################################
+
+@devec r = sum(a)
+@test isequal(r, sum(a))
+
+@devec r = sum(a[:,:])
+@test isequal(r, sum(a))
+
+@devec r = sum(abc[:,:])
+@test isequal(r, sum(abc))
+
+@devec r = max(a)
+@test isequal(r, max(a))
+
+@devec r = max(c)
+@test isequal(r, max(c))
+
+@devec r = min(a)
+@test isequal(r, min(a))
+
+@devec r = min(c)
+@test isequal(r, min(c))
+
+@devec r = dot(a, b)
+@test isequal(r, dot(a, b))
+
+@devec r = dot(a[:,:], b[:,:])
+@test isequal(r, dot(a, b))
+
+@devec r = dot(abc[:,:], abc)
+@test isequal(r, dot(abc[:], abc[:]))
+
+

@@ -21,11 +21,35 @@ export
 	tnum, tsym, tscalarsym, trefscalar, 
 	tref1d, tref2d, trefcol, trefrow,
 	tcall, tassign,
-	texpr
+	texpr,
+
+	# compile_base
+
+	EvalContext,
+	DirectContext,
+	OffshoreContext,
+
+	compile,
+	get,
+	to_size2d,
+
+	# scalar_backend
+
+	ScalarContext,
+	de_arr,
+	de_col,
+	de_row,
+
+	# macros
+	@devec,
+	@inspect_devec
 
 	
 include("fun_traits.jl")
 include("texpr.jl")
 include("meta_tools.jl")
+
+include("compile_base.jl")
+include("scalar_backend.jl")
 
 end

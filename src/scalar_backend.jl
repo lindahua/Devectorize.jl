@@ -24,305 +24,422 @@ end
 get{T<:Number}(r::DeArr{T}, i::Int) = r.src[i]
 get{T<:Number}(r::DeArr{T}, i::Int, j::Int) = r.src[i,j]
 
-type DeCol{T<:Number}
-	src::Array{T}
-	icol::Int
-end
-get{T<:Number}(r::DeCol{T}, i::Int) = r.src[i, r.icol]
-
-type DeRow{T<:Number}
-	src::Array{T}
-	irow::Int
-end
-get{T<:Number}(r::DeRow{T}, i::Int) = r.src[r.irow, i]
-
 
 # functions to generate accessors
 
 de_arr{T<:Number}(v::T) = DeConst{T}(v)
 de_arr{T<:Number}(a::Array{T}) = DeArr{T}(a)
-de_col{T<:Number}(a::Array{T}, i::Integer) = DeCol{T}(a, i)
-de_row{T<:Number}(a::Array{T}, i::Integer) = DeRow{T}(a, i)
+
+# others
+
+forward_number(x::Number) = x
+
 
 ##########################################################################
 #
-# 	code generators for ewise expressions
+# 	scalar kernel
 #
 ##########################################################################
 
-# right-hand-side code
+function compose_scalar(ctx::ScalarContext, ex::TNum)
+	pre = nothing
+	kernel = :( $(ex.e) )
+	(pre, kernel)
+end
 
-function compose(::ScalarContext, ::EWise{1}, t::TNum, idx::Symbol)
+function compose_scalar(ctx::ScalarContext, ex::TScalarSym)
+	pre = nothing
+	kernel = :( $(ex.e) )
+	(pre, kernel)
+end
+
+function compose_scalar(ctx::ScalarContext, ex::TRefScalar1)
 	@gensym rv
-	pre = :()
-	kernel = :( $(t.e) )
+	pre = assignment(rv, :( $(ex.host)[$(ex.i)] ))
+	kernel = :( $rv )
 	(pre, kernel)
 end
 
-function compose(::ScalarContext, ::EWise{1}, t::TSym, idx::Symbol)
-	@gensym rd
-	pre = :( ($rd) = de_arr($(t.e)) )
-	kernel = :( get($rd, $idx) )
-	(pre, kernel)
-end
-
-function compose(ctx::ScalarContext, kind::EWise{1}, ex::TCall, sinfo...)
-	
-	check_is_ewise(ex)
-
-	arg_rets = [compose(ctx, kind, a, sinfo...) for a in ex.args]
-
-	pre_stmts = [r[1] for r in arg_rets]
-	ker_args = [r[2] for r in arg_rets]
-
-	pre = create_code_block(pre_stmts...)
-	kernel = create_fun_call(ex.fun, ker_args...)
-
-	(pre, kernel)
-end
-
-function compose(::ScalarContext, ::EWise{1}, ex::TRef{(TColon,)}, idx::Symbol)
-	@gensym rd
-	pre = :( ($rd) = de_arr($(ex.host)) )
-	kernel = :( get($rd, $idx) )
-	(pre, kernel)
-end
-
-function compose(::ScalarContext, ::EWise{1}, ex::TRef{(TColon,TInt)}, idx::Symbol)
-	@gensym rd
-	pre = :( ($rd) = de_col($(ex.host), $(ex.args[2].e)) )
-	kernel = :( get($rd, $idx) )
-	(pre, kernel)
-end
-
-function compose(::ScalarContext, ::EWise{1}, ex::TRef{(TColon,TSym)}, idx::Symbol)
-	@gensym rd
-	pre = :( ($rd) = de_col($(ex.host), $(ex.args[2].e)) )
-	kernel = :( get($rd, $idx) )
-	(pre, kernel)
-end
-
-function compose(::ScalarContext, ::EWise{1}, ex::TRef{(TInt,TColon)}, idx::Symbol)
-	@gensym rd
-	pre = :( ($rd) = de_row($(ex.host), $(ex.args[1].e)) )
-	kernel = :( get($rd, $idx) )
-	(pre, kernel)
-end
-
-function compose(::ScalarContext, ::EWise{1}, ex::TRef{(TSym, TColon)}, idx::Symbol)
-	@gensym rd
-	pre = :( ($rd) = de_row($(ex.host), $(ex.args[1].e)) )
-	kernel = :( get($rd, $idx) )
-	(pre, kernel)
-end
-
-# right-hand-side code for 2D
-
-function compose(::ScalarContext, ::EWise{2}, t::TNum, i::Symbol, j::Symbol)
+function compose_scalar(ctx::ScalarContext, ex::TRefScalar2)
 	@gensym rv
-	pre = :()
-	kernel = :( $(t.e) )
+	pre = assignment(rv, :( $(ex.host)[$(ex.i), $(ex.j)] ))
+	kernel = :( $rv )
 	(pre, kernel)
 end
 
-function compose(::ScalarContext, ::EWise{2}, t::TSym, i::Symbol, j::Symbol)
+function compose_scalar(ctx::ScalarContext, ex::TMap)
+	@gensym rv
+
+	arg_rs = [compose_scalar(ctx, a) for a in ex.args]
+
+	arg_pres = [r[1] for r in arg_rs]
+	arg_kers = [r[2] for r in arg_rs]
+
+	pre = code_block(arg_pres..., 
+		assignment(rv, fun_call(ex.fun, arg_kers...)))
+	kernel = :( $(rv) )
+	(pre, kernel)
+end
+
+
+compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TScalar,   
+	i::Symbol) = compose_scalar(ctx, ex)
+
+compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TScalar,   
+	i::Symbol, j::Symbol) = compose_scalar(ctx, ex)
+
+
+##########################################################################
+#
+# 	kernel composition
+#
+##########################################################################
+
+
+# 1D EWise
+
+# LHS
+
+function compose_lhs(ctx::ScalarContext, mode::EWiseMode{1}, ex::TSym, i::Symbol)
+	pre = nothing
+	kernel = :( $(ex.e)[($i)] )
+	(pre, kernel)
+end
+
+function compose_lhs(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRef1D, i::Symbol)
+	pre = nothing
+	kernel = :( $(ex.host)[($i)] )
+	(pre, kernel)
+end
+
+# RHS
+
+function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, i::Symbol)
+	lhs_pre, lhs_kernel = compose_lhs(ctx, mode, ex.lhs, i)
+	rhs_pre, rhs_kernel = compose(ctx, mode, ex.rhs, i)
+
+	pre = code_block(lhs_pre, rhs_pre)
+	kernel = assignment(lhs_kernel, rhs_kernel)
+	(pre, kernel)
+end
+
+function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TSym, i::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_arr($(t.e)) )
-	kernel = :( get($rd, $i, $j) )
+	pre = assignment(rd, fun_call(qname(:de_arr), ex.e))
+	kernel = fun_call(qname(:get), rd, i)
 	(pre, kernel)
 end
 
-function compose(::ScalarContext, ::EWise{2}, ex::TRef{(TColon,TColon)}, i::Symbol, j::Symbol)
+function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRef1D, i::Symbol)
+	pre = nothing
+	kernel = :( $(ex.host)[$i] )
+	(pre, kernel)
+end
+
+function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRefCol, i::Symbol)
+	@gensym icol
+	pre = :( $icol = convert(Int, $(ex.icol)) )
+	kernel = :(  $(ex.host)[$i, $icol] )
+	(pre, kernel)
+end
+
+function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRefRow, i::Symbol)
+	@gensym irow
+	pre = :( $irow = convert(Int, $(ex.irow)) )
+	kernel = :( $(ex.host)[$irow, $i] )
+	(pre, kernel)
+end
+
+
+# 2D EWise
+
+# LHS
+
+function compose_lhs(ctx::ScalarContext, mode::EWiseMode{2}, ex::TSym, i::Symbol, j::Symbol)
+	pre = nothing
+	kernel = :( $(ex.e)[($i), ($j)] )
+	(pre, kernel)
+end
+
+function compose_lhs(ctx::ScalarContext, mode::EWiseMode{2}, ex::TRef2D, i::Symbol, j::Symbol)
+	pre = nothing
+	kernel = :( $(ex.host)[($i), ($j)] )
+	(pre, kernel)
+end
+
+# RHS
+
+function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, i::Symbol, j::Symbol)
+	lhs_pre, lhs_kernel = compose_lhs(ctx, mode, ex.lhs, i, j)
+	rhs_pre, rhs_kernel = compose(ctx, mode, ex.rhs, i, j)
+
+	pre = code_block(lhs_pre, rhs_pre)
+	kernel = assignment(lhs_kernel, rhs_kernel)
+	(pre, kernel)
+end
+
+function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TSym, i::Symbol, j::Symbol)
 	@gensym rd
-	pre = :( ($rd) = de_arr($(ex.host)) )
-	kernel = :( get($rd, $i, $j) )
+	pre = assignment(rd, fun_call(qname(:de_arr), ex.e))
+	kernel = fun_call(qname(:get), rd, i, j)
+	(pre, kernel)
+end
+
+function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TRef2D, i::Symbol, j::Symbol)
+	pre = nothing
+	kernel = :( $(ex.host)[($i), ($j)] )
 	(pre, kernel)
 end
 
 
-# left-hand-side code
+# Maps
 
-function compose_ewise_lhs(::ScalarContext, lhs::TSym, idx::Symbol)
-	(	:( length($(lhs.e)) ), 
-		:( $(lhs.e)[$(idx)] ) 
-	)
-end
+function compose(ctx::ScalarContext, mode::EWiseMode, ex::TMap, sinfo...)
+	@gensym rd
 
-function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TColon,)}, idx::Symbol)
-	(	:( length($(lhs.host)) ),
-		:( $(lhs.host)[$(idx)] )
-	)
-end
+	if isa(ex.mode, ScalarMode)
+		compose_scalar(ctx, ex)
+	else
+		arg_rs = [compose(ctx, mode, a, sinfo...) for a in ex.args]
 
-function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TColon,TInt)}, idx::Symbol)
-	(	:( size($(lhs.host),1) ),
-		:( $(lhs.host)[$(idx),$(lhs.args[2].e)] )
-	)
-end
+		arg_pres = [r[1] for r in arg_rs]
+		arg_kers = [r[2] for r in arg_rs]
 
-function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TColon,TSym)}, idx::Symbol)
-	(	:( size($(lhs.host),1) ),
-		:( $(lhs.host)[$(idx),$(lhs.args[2].e)] )
-	)
-end
-
-function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TInt,TColon)}, idx::Symbol)
-	(	:( size($(lhs.host),2) ),
-		:( $(lhs.host)[$(lhs.args[1].e), $(idx)] )
-	)
-end
-
-function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TSym,TColon)}, idx::Symbol)
-	(	:( size($(lhs.host),2) ),
-		:( $(lhs.host)[$(lhs.args[1].e), $(idx)] )
-	)
-end
-
-# left hand side 2D
-
-function compose_ewise_lhs(::ScalarContext, lhs::TSym, i::Symbol, j::Symbol)
-	(	:( size($(lhs.e)) ),
-		:( $(lhs.e)[$(i), $(j)] )
-	)
-end
-
-function compose_ewise_lhs(::ScalarContext, lhs::TRef{(TColon,TColon)}, i::Symbol, j::Symbol)
-	(	:( size($(lhs.host)) ),
-		:( $(lhs.host)[$(i), $(j)] )
-	)
-end
-
-# main parts
-
-function compose_lhs_init(ctx::ScalarContext, ::EWise, lhs::TSym, rhs::TExpr) 
-
-	@gensym ty siz
-
-	ty_infer = gen_type_inference(rhs)
-	siz_infer = gen_size_inference(rhs)
-
-	quote
-		($ty) = ($ty_infer)
-		($siz) = ($siz_infer)
-		($(lhs.e)) = Array(($ty), ($siz))
+		pre = code_block(arg_pres...)
+		kernel = fun_call(ex.fun, arg_kers...)
+		(pre, kernel)
 	end
 end
 
-function compose_main_loop(ctx::ScalarContext, ::EWise{1}, lhs::TExpr, rhs::TExpr) 
-	@gensym i n
-	lhs_len, lhs_expr = compose_ewise_lhs(ctx, lhs, i)
-	rhs_pre, rhs_kernel = compose(ctx, EWise{1}(), rhs, i)
+# Scalar case
 
-	# compose the main loop
+compose(ctx::ScalarContext, mode::ScalarMode, ex::TNum) = :( $(ex.e) )
+compose(ctx::ScalarContext, mode::ScalarMode, ex::TSym) = :( $(ex.e) )
+compose(ctx::ScalarContext, mode::ScalarMode, ex::TScalarSym) = :( $(ex.e) )
 
-	quote
-		local ($n) = ($lhs_len)
-		$rhs_pre
-		for ($i) = 1 : ($n)
-			$(lhs_expr) = ($rhs_kernel)
-		end
-	end
+compose(ctx::ScalarContext, mode::ScalarMode, ex::TRefScalar1) = :( $(ex.host)[$(ex.i)] )
+compose(ctx::ScalarContext, mode::ScalarMode, ex::TRefScalar2) = :( $(ex.host)[$(ex.i), $(ex.j)] )
+
+function compose(ctx::ScalarContext, mode::ScalarMode, ex::TMap)
+	arg_calcs = [compose(ctx, mode, a) for a in ex.args]
+	fun_call(ex.fun, arg_calcs...)
 end
 
-function compose_main_loop(ctx::ScalarContext, ::EWise{2}, lhs::TExpr, rhs::TExpr)
-	@gensym i j siz m n
-	lhs_siz, lhs_expr = compose_ewise_lhs(ctx, lhs, i, j)
-	rhs_pre, rhs_kernel = compose(ctx, EWise{2}(), rhs, i, j)
+function compose(ctx::ScalarContext, mode::ScalarMode, ex::TAssign)
+	l = compose(ctx, mode, ex.lhs)
+	r = compose(ctx, mode, ex.rhs)
+	:( ($l) = ($r) )
+end
 
-	# compose the main loop
 
-	quote
-		local $siz = ($lhs_siz)
-		local $m = $siz[1]
-		local $n = $siz[2]
-		$rhs_pre
-		for ($j) = 1 : ($n), ($i) = 1 : ($m)
-			$(lhs_expr) = ($rhs_kernel)
-		end
-	end
+# Full reduction
+
+function reduc_init(f::Symbol, ty::Symbol)
+	f == (:sum)  ? :( zero($ty) ) :
+	f == (:max)  ? :( typemin($ty) ) :
+	f == (:min)  ? :( typemax($ty) ) :
+	f == (:mean) ? :( zero($ty) ) :
+	f == (:dot)  ? :( zero($ty) ) :
+	throw(DeError("Unsupported reduction function $f"))
+end
+
+function reduc_update(f::Symbol, s::Symbol, args::Symbol...)
+	f == (:sum)  ? :( $s += $(args[1]) ) :
+	f == (:max)  ? :( $s = max($s, $(args[1])) ) :
+	f == (:min)  ? :( $s = min($s, $(args[1])) ) :
+	f == (:mean) ? :( $s += $(args[1]) ) :
+	f == (:dot)  ? :( $s += $(args[1]) * $(args[2]) ) :
+	throw(DeError("Unsupported reduction function $f"))
 end
 
 
 ##########################################################################
 #
-# 	code generators for reduction expressions
+# 	init-part composition
 #
 ##########################################################################
 
-# initializers
+compose_init(ctx::ScalarContext, mode::ScalarMode, ex::TAssign) = (nothing, nothing)
 
-function compose_reduc_init(ctx::ScalarContext, rhs::TCall, dst::Symbol, ty::Symbol)
-	f = rhs.fun
-	f == (:sum)  ? :( ($dst) = zero($ty) ) :
-	f == (:max)  ? :( ($dst) = typemin($ty) ) :
-	f == (:min)  ? :( ($dst) = typemax($ty) ) :
-	f == (:mean) ? :( ($dst) = zero($ty) ) :
-	:()
-end
+function compose_init(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
 
-function compose_reduc_kernel(ctx::ScalarContext, rhs::TCall, dst::Symbol, x::Symbol)
-	f = rhs.fun
-	f == (:sum)  ? :( ($dst) += ($x) ) :
-	f == (:max)  ? :( ($dst) = max(($dst), ($x)) ) :
-	f == (:min)  ? :( ($dst) = min(($dst), ($x)) ) :
-	f == (:mean) ? :( ($dst) += ($x) ) :
-	:()
-end
+	@gensym len siz ty
 
-function compose_reduc_post(ctx::ScalarContext, rhs::TCall, dst::Symbol, n::Symbol)
-	f = rhs.fun
-	f == (:mean) ? :( ($dst) /= ($n) ) :
-	:()
-end
-
-# integrated
-
-function compose_lhs_init(ctx::ScalarContext, ::Reduc, lhs::TSym, rhs::TExpr) 
-
-	@gensym ty
-
-	dst = lhs.e
-	ty_infer = gen_type_inference(rhs)
-	init = compose_reduc_init(ctx, rhs, dst, ty)
-
-	quote
-		($ty) = ($ty_infer)
-		($init)
+	if isa(ex.lhs, TSym)
+		code = code_block(
+			assignment(siz, size_inference(ex)),
+			assignment(ty, type_inference(ex)),
+			assignment(ex.lhs.e, fun_call(:Array, ty, siz)),
+			assignment(len, length_getter(ex.lhs))
+		)
+	else
+		code = assignment(len, length_getter(ex.lhs))
 	end
+
+	(code, len)
+end
+
+function compose_init(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign)
+
+	@gensym siz ty
+
+	if isa(ex.lhs, TSym)
+		code = code_block(
+			assignment(siz, size_inference(ex)),
+			assignment(ty, type_inference(ex)),
+			assignment(ex.lhs.e, fun_call(:Array, ty, siz))
+		)
+	else
+		code = assignment(siz, size2d_getter(ex.lhs))
+	end
+
+	(code, siz)
+end
+
+function compose_init(ctx::ScalarContext, mode::ReducMode, ex::TAssign)
+
+	@gensym tmp ty
+
+	s = isa(ex.lhs, TSym) ? ex.lhs.e : tmp
+
+	code = code_block(
+		assignment(ty, type_inference(ex)),
+		assignment(s, reduc_init(ex.rhs.fun, ty))
+	)
+	(code, s)
 end
 
 
-function compose_main_loop(ctx::ScalarContext, ::Reduc{1}, lhs::TSym, rhs::TCall)
 
-	# code for setup
+##########################################################################
+#
+# 	main body compilation
+#
+##########################################################################
 
-	dst = lhs.e
-	siz_infer = gen_size_inference(rhs)
-	
-	# generate reduction-specific part of codes
-	
-	@gensym siz n i x 
+compose_main(ctx::ScalarContext, mode::ScalarMode, ex::TAssign, ::Nothing) = compose(ctx, mode, ex)
 
-	rhs_pre, rhs_kernel = compose(ctx, EWise{1}(), rhs.args[1], i)
-	
-	fold_kernel = compose_reduc_kernel(ctx, rhs, dst, x)
-	post = compose_reduc_post(ctx, rhs, dst, n)
-	
-	# compose the whole thing
+function compose_main(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, len::Symbol)
 
-	quote
-		local ($siz) = ($siz_infer)
-		local ($n) = prod(($siz))
-		($rhs_pre)
-		for ($i) = 1 : ($n)
-			($x) = ($rhs_kernel)
-			($fold_kernel)
+	@gensym i
+	(pre, kernel) = compose(ctx, mode, ex, i)
+	
+	main_loop = quote
+		for ($i) = 1 : ($len)
+			($kernel)
 		end
-		($post)
 	end
+
+	code_block(pre, main_loop)
+end
+
+function compose_main(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, siz::Symbol)
+
+	@gensym i j m n
+	(pre, kernel) = compose(ctx, mode, ex, i, j)
+	
+	main_loop = quote
+		($m) = ($siz)[1]
+		($n) = ($siz)[2]
+		for ($j) = 1 : ($n)
+			for ($i) = 1 : ($m)
+				($kernel)
+			end
+		end
+	end
+
+	code_block(pre, main_loop)
 end
 
 
+function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, r::TReduc, s::Symbol)
+	@gensym siz n i x1 x2
+
+	na = length(r.args)
+
+	if na == 1
+		arg1_code = compose(ctx, mode, r.args[1], i)
+		arg1_pre  = arg1_code[1]
+		arg1_calc = arg1_code[2]
+		quote
+			($siz) = $(args_size_inference(r.args))
+			($n) = prod($siz)
+			($arg1_pre)
+			for ($i) = 1 : ($n)
+				($x1) = ($arg1_calc)
+				$(reduc_update(r.fun, s, x1))
+			end
+		end
+	elseif na == 2
+		arg1_code = compose(ctx, mode, r.args[1], i)
+		arg2_code = compose(ctx, mode, r.args[2], i)
+		arg1_pre  = arg1_code[1]
+		arg2_pre  = arg2_code[1]
+		arg1_calc = arg1_code[2]
+		arg2_calc = arg2_code[2]
+		quote
+			($siz) = $(args_size_inference(r.args))
+			($n) = prod($siz)
+			($arg1_pre)
+			($arg2_pre)
+			for ($i) = 1 : ($n)
+				($x1) = ($arg1_calc)
+				($x2) = ($arg2_calc)
+				$(reduc_update(r.fun, s, x1, x2))
+			end
+		end
+	end
+end
+
+function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, r::TReduc, s::Symbol)
+	@gensym siz m n i j x1 x2
+
+	na = length(r.args)
+
+	if na == 1
+		arg1_code = compose(ctx, mode, r.args[1], i, j)
+		arg1_pre  = arg1_code[1]
+		arg1_calc = arg1_code[2]
+		quote
+			($siz) = $(args_size_inference(r.args))
+			($m), $(n) = DeExpr.to_size2d(($siz))
+			($arg1_pre)
+			for ($j) = 1 : ($n), ($i) = 1 : ($m)
+				($x1) = ($arg1_calc)
+				$(reduc_update(r.fun, s, x1))
+			end
+		end
+	elseif na == 2
+		arg1_code = compose(ctx, mode, r.args[1], i, j)
+		arg2_code = compose(ctx, mode, r.args[2], i, j)
+		arg1_pre  = arg1_code[1]
+		arg2_pre  = arg2_code[1]
+		arg1_calc = arg1_code[2]
+		arg2_calc = arg2_code[2]
+		quote
+			($siz) = $(args_size_inference(r.args))
+			($m), $(n) = DeExpr.to_size2d(($siz))
+			($arg1_pre)
+			($arg2_pre)
+			for ($j) = 1 : ($n), ($i) = 1 : ($m)
+				($x1) = ($arg1_calc)
+				($x2) = ($arg2_calc)
+				$(reduc_update(r.fun, s, x1, x2))
+			end
+		end
+	end
+end
+
+function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, s::Symbol)
+	rhs = ex.rhs
+
+	rmode = rhs.arg_mode
+	if isa(rmode, EWiseMode{0})
+		rmode = EWiseMode{1}()
+	end
+
+	compose_reduc_main(ctx, rmode, rhs, s)
+end
 
 ##########################################################################
 #
@@ -332,16 +449,19 @@ end
 
 macro devec(assign_ex) 
 	esc(begin 
-		de_compile(ScalarContext(), assign_ex)
+		compile(ScalarContext(), assign_ex)
 	end)
 end
 
 # macro to inspect the generated code
 
 macro inspect_devec(assign_ex)
-	begin
-		code = de_compile(ScalarContext(), assign_ex)
+	let code = compile(ScalarContext(), assign_ex)
+		println("$assign_ex ==>")
 		println(code)
 	end
+	esc(begin 
+		compile(ScalarContext(), assign_ex)
+	end)
 end
 

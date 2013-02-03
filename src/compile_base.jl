@@ -24,39 +24,41 @@ abstract DirectContext <: EvalContext
 # managed context: transfer the computation to a specific device (e.g. GPU)
 abstract OffshoreContext <: EvalContext
 
-
 ##########################################################################
 #
 #  Top level compilation skeletons
 #
 ##########################################################################
 
-function de_compile(ctx::EvalContext, top_expr::Expr)
+function compile(ctx::EvalContext, top_expr::Expr)
 	# generate codes for cases where lhs is pre-allocated in correct size and type
 	
 	if !(top_expr.head == :(=))
 		throw(DeError("Top level expression must be an assignment"))
 	end
 	
-	de_compile(ctx, texpr(top_expr))
+	te = texpr(top_expr)
+	compile(ctx, te.mode, te)
 end
 
-function de_compile(ctx::EvalContext, top_expr::TAssign)
-
-	rhs_kind, require_lhs_init = analyze_expr(top_expr)
-
-	lhs = top_expr.lhs
-	rhs = top_expr.rhs
-
-	lhs_init = require_lhs_init ? compose_lhs_init(ctx, rhs_kind, lhs, rhs) : :()
-	main_loop = compose_main_loop(ctx, rhs_kind, lhs, rhs)
-
-	# compiled code
-
-	quote
-		($lhs_init)
-		($main_loop)
-	end
+function compile(ctx::EvalContext, top_expr::TAssign)
+	mode = tmode(top_expr)
+	compile(ctx, mode, top_expr)
 end
+
+
+function compile(ctx::EvalContext, mode::TMode, ex::TAssign)
+
+	# compose parts
+
+	mode_ = isa(mode, EWiseMode{0}) ? EWiseMode{1}() : mode
+
+	(init, info) = compose_init(ctx, mode_, ex)
+	main_body = compose_main(ctx, mode_, ex, info)
+
+	# integrate
+	flatten_code_block(code_block(init, main_body))
+end
+
 
 

@@ -7,17 +7,68 @@
 #
 ##########################################################################
 
-function create_code_block(stmts...)
-	expr(:block, stmts...)
+function code_block(stmts...)
+	stmts_ = Any[]
+	for s in stmts
+		if !(s == nothing)
+			push!(stmts_, s)
+		end
+	end
+	isempty(stmts_) ? nothing : expr(:block, stmts_)
 end
 
-function create_fun_call(funsym, args...)
+
+function flatten_code_block_to(q, stmt_lst)
+	for s in stmt_lst
+		if s == nothing || s.head == (:line) 
+			continue
+		end
+		if s.head == (:block)
+			flatten_code_block_to(q, s.args)
+		else
+			push!(q, s)
+		end
+	end
+end
+
+function flatten_code_block(stmts...)
+	q = Any[]
+	flatten_code_block_to(q, stmts)
+	code_block(q...)
+end
+
+
+function fun_call(funsym, args...)
 	expr(:call, funsym, args...)
 end
 
-function create_assignment(lhs, rhs)
+function qname(m::Symbol, x::Symbol)
+	expr(:(.), m, expr(:quote, x))
+end
+
+qname(x::Symbol) = qname(:DeExpr, x)
+
+function assignment(lhs, rhs)
 	expr(:(=), lhs, rhs)
 end
+
+
+##########################################################################
+#
+# 	getting size info of LHS
+#
+##########################################################################
+
+length_getter(ex::TSym) = :( length($(ex.e)) )
+length_getter(ex::TRef1D) = :( length($(ex.host)) )
+length_getter(ex::TRefCol) = :( size($(ex.host), 1) )
+length_getter(ex::TRefRow) = :( size($(ex.host), 2) )
+
+size2d_getter(ex::TSym) = :( size($(ex.e)) )
+size2d_getter(ex::TRef2D) = :( size($(ex.host)) )
+
+to_size2d(s::(Int,)) = (s[1], 1)
+to_size2d(s::(Int, Int)) = s
 
 
 ##########################################################################
@@ -36,7 +87,7 @@ ewise_shape(s, ::()) = s
 ewise_shape(s1, s2) = promote_shape(s1, s2)
 
 ewise_shape(::(), ::(), ::()) = ()
-ewise_shape(s1, ::(), ::()) = s2
+ewise_shape(s1, ::(), ::()) = s1
 ewise_shape(::(), s2, ::()) = s2
 ewise_shape(::(), ::(), s3) = s3
 ewise_shape(s1, s2, ::()) = promote_shape(s1, s2)
@@ -58,10 +109,18 @@ size_inference(ex::TRef2D) = :( size($(ex.host)) )
 
 size_inference(ex::TAssign) = :( $(size_inference(ex.rhs)) )
 
-function size_inference(ex::TMap) 
-	arg_stmts = [size_inference(a) for a in ex.args]
-	create_fun_call(:ewise_shape, arg_stmts...)
+
+function args_size_inference(args::(TEWise...,))
+	if length(args) == 1
+		size_inference(args[1])
+	else
+		arg_stmts = [size_inference(a) for a in args]
+		fun_call(qname(:ewise_shape), arg_stmts...)
+	end
 end
+
+size_inference(ex::TMap) = args_size_inference(ex.args)
+
 
 
 ##########################################################################
@@ -75,14 +134,14 @@ type_inference(ex::TSym) = :( eltype($(ex.e)) )
 type_inference(ex::TRefScalar) = :( eltype($(ex.host)) )
 type_inference(ex::TRef) = :( eltype($(ex.host)) )
 
-type_inference(ex::TAssign) = :( $(gen_type_inference(ex.rhs)) )
+type_inference(ex::TAssign) = :( $(type_inference(ex.rhs)) )
 
 function type_inference(ex::TFunCall) 
 
 	tf = TFun{ex.fun}()
 	argty_exprs = [type_inference(a) for a in ex.args]
 
-	create_fun_call(:result_type, tf, argty_exprs...) 
+	fun_call(qname(:result_type), tf, argty_exprs...) 
 end
 
 
