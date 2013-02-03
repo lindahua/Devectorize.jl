@@ -345,5 +345,17 @@ n = 4
 @test isequal(r, sum(abct))
 
 
+#################################################
+#
+#	blocks
+#
+#################################################
+
+@devec begin
+	x = a + b .* c
+	s = sum(a)
+end
+@test isequal(x, a + b .* c)
+@test isequal(s, sum(a))
 
 

@@ -141,7 +141,6 @@ end
 size_inference(ex::TMap) = args_size_inference(ex.args)
 
 
-
 ##########################################################################
 #
 # 	type inference
@@ -162,7 +161,4 @@ function type_inference(ex::TFunCall)
 
 	fun_call(qname(:result_type), tf, argty_exprs...) 
 end
-
-
-
 
