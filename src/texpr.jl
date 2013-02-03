@@ -96,6 +96,11 @@ type TAssign{Lhs<:Union(TSym,TRefScalar,TRef), Rhs<:TExpr} <: TExpr
 	mode::TMode
 end
 
+type TBlock <: TExpr
+	stmts::Array{TExpr}
+	TBlock() = new(TExpr[])
+end
+
 
 ##########################################################################
 #
@@ -316,6 +321,20 @@ function texpr(ex::Expr)
 		lhs = texpr(ex.args[1])
 		rhs = texpr(ex.args[2])
 		tassign(lhs, rhs)
+
+	elseif ex.head == :(block)
+
+		blk = TBlock()
+		for e in ex.args
+			if isa(e, LineNumberNode) || e.head == (:line)
+				continue
+			end
+			if !(e.head == :(=) || ex.head == :(block))
+				throw(DeError("Each statement in a block must be an assignment or a nested block"))
+			end
+			push!(blk.stmts, texpr(e))
+		end
+		blk
 
 	else
 		throw(DeError("Unrecognized expression: $ex"))

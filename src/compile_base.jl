@@ -33,20 +33,9 @@ abstract OffshoreContext <: EvalContext
 function compile(ctx::EvalContext, top_expr::Expr)
 	# generate codes for cases where lhs is pre-allocated in correct size and type
 
-	if top_expr.head == :(=)
+	if top_expr.head == :(=) || top_expr.head == :(block)
 		te = texpr(top_expr)
-		compile(ctx, te.mode, te)
-
-	elseif top_expr.head == (:block)
-		codes = Any[]
-		for e in top_expr.args
-			if isa(e, LineNumberNode) || e.head == (:line)
-				continue
-			end
-			push!(codes, compile(ctx, e))
-		end
-		code_block(codes...)
-
+		compile(ctx, te)
 	else
 		throw(DeError("Top level expression must be either an assignment or a block"))
 	end
@@ -72,4 +61,8 @@ function compile(ctx::EvalContext, mode::TMode, ex::TAssign)
 end
 
 
+function compile(ctx::EvalContext, ex::TBlock)
+	codes = [compile(ctx, s) for s in ex.stmts]
+	code_block(codes...)
+end
 
