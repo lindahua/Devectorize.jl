@@ -31,6 +31,7 @@ export
 	OffshoreContext,
 
 	compile,
+	compile_fast_reduc,
 	get,
 	to_size2d,
 
@@ -43,7 +44,9 @@ export
 
 	# macros
 	@devec,
-	@inspect_devec
+	@inspect_devec,
+	@fast_reduc,
+	@inspect_fast_reduc
 
 	
 include("fun_traits.jl")

@@ -308,15 +308,16 @@ end
 
 function compose_init(ctx::ScalarContext, mode::ReducMode, ex::TAssign)
 
-	@gensym tmp ty
+	@gensym tmp ty siz
 
 	s = isa(ex.lhs, TSym) ? ex.lhs.e : tmp
 
 	code = code_block(
 		assignment(ty, type_inference(ex)),
+		assignment(siz, args_size_inference(ex.rhs.args)),
 		assignment(s, reduc_init(ex.rhs.fun, ty))
 	)
-	(code, s)
+	(code, (s, siz))
 end
 
 
@@ -362,17 +363,18 @@ function compose_main(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, siz::
 end
 
 
-function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, r::TReduc, s::Symbol)
-	@gensym siz n i x1 x2
+function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, r::TReduc, info)
+	@gensym n i x1 x2
 
 	na = length(r.args)
+	s = info[1]
+	siz = info[2]
 
 	if na == 1
 		arg1_code = compose(ctx, mode, r.args[1], i)
 		arg1_pre  = arg1_code[1]
 		arg1_calc = arg1_code[2]
 		quote
-			($siz) = $(args_size_inference(r.args))
 			($n) = prod($siz)
 			($arg1_pre)
 			for ($i) = 1 : ($n)
@@ -389,7 +391,6 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, r::TReduc, s
 		arg1_calc = arg1_code[2]
 		arg2_calc = arg2_code[2]
 		quote
-			($siz) = $(args_size_inference(r.args))
 			($n) = prod($siz)
 			($arg1_pre)
 			($arg2_pre)
@@ -403,17 +404,18 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, r::TReduc, s
 	end
 end
 
-function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, r::TReduc, s::Symbol)
-	@gensym siz m n i j x1 x2
+function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, r::TReduc, info)
+	@gensym m n i j x1 x2
 
 	na = length(r.args)
+	s = info[1]
+	siz = info[2]
 
 	if na == 1
 		arg1_code = compose(ctx, mode, r.args[1], i, j)
 		arg1_pre  = arg1_code[1]
 		arg1_calc = arg1_code[2]
 		quote
-			($siz) = $(args_size_inference(r.args))
 			($m), $(n) = DeExpr.to_size2d(($siz))
 			($arg1_pre)
 			for ($j) = 1 : ($n), ($i) = 1 : ($m)
@@ -430,7 +432,6 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, r::TReduc, s
 		arg1_calc = arg1_code[2]
 		arg2_calc = arg2_code[2]
 		quote
-			($siz) = $(args_size_inference(r.args))
 			($m), $(n) = DeExpr.to_size2d(($siz))
 			($arg1_pre)
 			($arg2_pre)
@@ -444,7 +445,7 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, r::TReduc, s
 	end
 end
 
-function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, s::Symbol)
+function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, info)
 	rhs = ex.rhs
 
 	rmode = rhs.arg_mode
@@ -452,8 +453,36 @@ function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, s::Symbo
 		rmode = EWiseMode{1}()
 	end
 
-	compose_reduc_main(ctx, rmode, rhs, s)
+	compose_reduc_main(ctx, rmode, rhs, info)
 end
+
+
+function compile_fast_reduc(ctx::ScalarContext, iex::TExpr, ex::TAssign)
+	if !(isa(ex.lhs, TSym) && isa(ex.rhs, TReduc))
+		throw(DeError("Invalid expression for fast_reduc."))
+	end
+
+	@gensym siz
+	ty = iex.host
+
+	siz_infer, mode = if isa(iex, TRefScalar1)
+		:( ($siz) = ($(iex.i),) ), EWiseMode{1}()
+	elseif isa(iex, TRefScalar2)
+		:( ($siz) = ($(iex.i), $(iex.j)) ), EWiseMode{2}()
+	else
+		throw(DeError("Invalid size and type spec"))
+	end
+
+	s = ex.lhs.e
+	init = assignment(s, reduc_init(ex.rhs.fun, ty))
+	main = compose_reduc_main(ctx, mode, ex.rhs, (s, siz))
+	flatten_code_block(init, siz_infer, main)
+end
+
+function compile_fast_reduc(ctx::ScalarContext, iex::Expr, ex::Expr)
+	compile_fast_reduc(ctx, texpr(iex), texpr(ex))
+end
+
 
 ##########################################################################
 #
@@ -467,15 +496,31 @@ macro devec(assign_ex)
 	end)
 end
 
-# macro to inspect the generated code
-
 macro inspect_devec(assign_ex)
-	let code = compile(ScalarContext(), assign_ex)
+	let code__ = compile(ScalarContext(), assign_ex)
 		println("$assign_ex ==>")
-		println(code)
+		println(code__)
 	end
 	esc(begin 
 		compile(ScalarContext(), assign_ex)
 	end)
 end
+
+macro fast_reduc(info_ex, assign_ex)
+	esc(begin
+		compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
+	end)
+end
+
+macro inspect_fast_reduc(info_ex, assign_ex)
+	let code__ = compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
+		println("$assign_ex ==>")
+		println(code__)
+	end
+	esc(begin
+		compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
+	end)
+end
+
+
 

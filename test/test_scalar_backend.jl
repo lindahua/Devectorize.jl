@@ -3,6 +3,8 @@
 import DeExpr
 import DeExpr.@devec
 import DeExpr.@inspect_devec
+import DeExpr.@fast_reduc
+import DeExpr.@inspect_fast_reduc
 using Test
 
 # tools to help testing
@@ -260,5 +262,25 @@ j = 3
 
 @devec r = dot(abc[:,:], abc)
 @test isequal(r, dot(abc[:], abc[:]))
+
+#################################################
+#
+#	fast reduction
+#
+#################################################
+
+@fast_reduc Float64[4] r = sum(a)
+@test isequal(r, sum(a))
+
+n = 4
+@fast_reduc Float64[n] r = sum(a)
+@test isequal(r, sum(a))
+
+@fast_reduc Float64[4,3] r = sum(abc)
+@test isequal(r, sum(abc))
+
+@fast_reduc Float64[3,n] r = sum(abct)
+@test isequal(r, sum(abct))
+
 
 
