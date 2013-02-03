@@ -5,6 +5,7 @@ export
 	TFun,
 	TCallSig,
 	result_type,
+	sqr, rcp,
 
 	# texpr
 
