@@ -37,7 +37,6 @@ function flatten_code_block(stmts...)
 	code_block(q...)
 end
 
-
 function fun_call(funsym, args...)
 	expr(:call, funsym, args...)
 end
@@ -50,6 +49,14 @@ qname(x::Symbol) = qname(:DeExpr, x)
 
 function assignment(lhs, rhs)
 	expr(:(=), lhs, rhs)
+end
+
+function if_statement(con, tblock, fblock)
+	expr(:if, con, tblock, fblock)
+end
+
+function for_statement(head, body)
+	expr(:for, head, body)
 end
 
 
@@ -69,6 +76,9 @@ size2d_getter(ex::TRef2D) = :( size($(ex.host)) )
 
 to_size2d(s::(Int,)) = (s[1], 1)
 to_size2d(s::(Int, Int)) = s
+
+to_length(s::(Int,)) = s[1]
+to_length(s::(Int, Int)) = s[1] * s[2]
 
 
 ##########################################################################

@@ -21,6 +21,7 @@ type EWiseMode{D} <: TMode end
 type ReducMode <: TMode end
 type PReducMode <: TMode end
 
+type TEmpty <: TExpr end
 
 type TNum{T<:Number} <: TScalar
 	e::T
@@ -170,6 +171,22 @@ function check_all_ewise_args(args::(TExpr...,))
 	end
 end
 
+# due to intricate semantics of partial reduction in Julia syntax
+# we here hand-coded the specific form to be recognized as partial reduction
+
+function recognize_partial_reduction(f::Symbol, a::(TExpr...,))
+	if f == (:sum) || f == (:mean)
+		if length(a) == 2 && (isa(a[2], TSym) || isa(a[2], TNum))
+			TPReduc(f, (a[1],), a[2].e)
+		end
+	elseif f == (:max) || f == (:min)
+		if length(a) == 3 && isa(a[2], TEmpty) && (isa(a[3], TSym) || isa(a[3], TNum))
+			TPReduc(f, (a[1],), a[3].e)
+		end
+	end
+end
+
+
 function tcall(f::Symbol, args::(TExpr...,))
 	n = length(args)
 	if is_ewise_call(f, n)
@@ -183,7 +200,11 @@ function tcall(f::Symbol, args::(TExpr...,))
 		TReduc(f, args, arg_mode)
 
 	else
-		throw(DeError("Unrecognized function $f with $n arguments (in DeExpr)"))
+		ex = recognize_partial_reduction(f, args)
+		if ex == nothing
+			throw(DeError("Unrecognized function $f with $n arguments (in DeExpr)"))
+		end
+		return ex
 	end
 end
 
@@ -199,10 +220,13 @@ function tassign(lhs::TExpr, rhs::TExpr)
 
 	elseif isa(lhs, TRefScalar)
 		rmode = tmode(rhs)
-		if !(isa(rmode, ScalarMode) || isa(rmode, EWiseMode{0}))
+		if isa(rmode, ScalarMode) || isa(rmode, EWiseMode{0})
+			mode = ScalarMode()
+		elseif isa(rmode, ReducMode)
+			mode = ReducMode()
+		else
 			throw(DeError("rhs cannot contain non-scalar ref when lhs is a scalar-ref."))
 		end
-		mode = ScalarMode()
 
 	elseif isa(lhs, TRef)
 		@assert isa(lhs, TEWise)
@@ -274,6 +298,10 @@ function texpr(ex::Expr)
 	elseif ex.head == :(ref)
 
 		texpr_for_ref(ex)
+
+	elseif ex.head == :(tuple) && isempty(ex.args)
+
+		TEmpty()
 
 	elseif ex.head == :(=)
 

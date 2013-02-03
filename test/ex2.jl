@@ -16,7 +16,7 @@ macro my_bench(FName)
 	quote
 		println("bench: ", $(string(FName)))
 		local t0 = @elapsed ($FName)(a, b, c, r)  # warming
-		local repeat = 10
+		local repeat = 20
 		local t1 = @elapsed for i = 1 : repeat
 			($FName)(a, b, c, r)
 		end

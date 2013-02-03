@@ -227,7 +227,11 @@ j = 3
 #
 #################################################
 
-@devec r = sum(a)
+r = zeros(1)
+@devec r[1] = sum(a)
+@test isequal(r, [sum(a)])
+
+@inspect_devec r = sum(a)
 @test isequal(r, sum(a))
 
 @devec r = sum(a[:,:])
@@ -263,6 +267,7 @@ j = 3
 @devec r = dot(abc[:,:], abc)
 @test isequal(r, dot(abc[:], abc[:]))
 
+
 #################################################
 #
 #	fast reduction
@@ -281,6 +286,7 @@ n = 4
 
 @fast_reduc Float64[3,n] r = sum(abct)
 @test isequal(r, sum(abct))
+
 
 
 

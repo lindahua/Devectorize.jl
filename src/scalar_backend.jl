@@ -234,33 +234,45 @@ end
 
 # Full reduction
 
-function reduc_init(f::Symbol, ty::Symbol)
-	f == (:sum)  ? :( zero($ty) ) :
-	f == (:max)  ? :( typemin($ty) ) :
-	f == (:min)  ? :( typemax($ty) ) :
-	f == (:mean) ? :( zero($ty) ) :
-	f == (:dot)  ? :( zero($ty) ) :
-	throw(DeError("Unsupported reduction function $f"))
+function reduc_computation(f::TFun{:(sum)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( zero($ty) )
+	init_val = :( $(xs[1]) )
+	updater = :( $s += $(xs[1]) )
+	post = quote end
+	(empty_val, init_val, updater, post)
 end
 
-function reduc_update(f::Symbol, s::Symbol, args::Symbol...)
-	f == (:sum)  ? :( $s += $(args[1]) ) :
-	f == (:max)  ? :( $s = max($s, $(args[1])) ) :
-	f == (:min)  ? :( $s = min($s, $(args[1])) ) :
-	f == (:mean) ? :( $s += $(args[1]) ) :
-	f == (:dot)  ? :( $s += $(args[1]) * $(args[2]) ) :
-	throw(DeError("Unsupported reduction function $f"))
+function reduc_computation(f::TFun{:(max)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( typemin($ty) )
+	init_val = :( $(xs[1]) )
+	updater = :( $s = max($s, $(xs[1])) )
+	post = quote end
+	(empty_val, init_val, updater, post)
 end
 
-
-div_size(x::Real, n::Int) = x / n
-div_size(x::Real, s::(Int,)) = x / s[1]
-div_size(x::Real, s::(Int,Int)) = x / (s[1] * s[2])
-
-function reduc_post(f::Symbol, s::Symbol, n::Symbol)
-	f == (:mean) ? :( $s = DeExpr.div_size($s, $n) ) : (quote end)
+function reduc_computation(f::TFun{:(min)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( typemax($ty) )
+	init_val = :( $(xs[1]) )
+	updater = :( $s = min($s, $(xs[1])) )
+	post = quote end
+	(empty_val, init_val, updater, post)
 end
 
+function reduc_computation(f::TFun{:(mean)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( zero($ty) )
+	init_val = :( $(xs[1]) )
+	updater = :( $s += $(xs[1]) )
+	post = :( $s /= $n )
+	(empty_val, init_val, updater, post)
+end
+
+function reduc_computation(f::TFun{:(dot)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( zero($ty) )
+	init_val = :( $(xs[1]) * $(xs[2]) )
+	updater = :( $s += $(xs[1]) * $(xs[2]) )
+	post = quote end
+	(empty_val, init_val, updater, post)
+end
 
 
 ##########################################################################
@@ -314,12 +326,44 @@ function compose_init(ctx::ScalarContext, mode::ReducMode, ex::TAssign)
 
 	code = code_block(
 		assignment(ty, type_inference(ex)),
-		assignment(siz, args_size_inference(ex.rhs.args)),
-		assignment(s, reduc_init(ex.rhs.fun, ty))
+		assignment(siz, args_size_inference(ex.rhs.args))
 	)
-	(code, (s, siz))
+	(code, (s, siz, ty))
 end
 
+function compose_init(ctx::ScalarContext, mode::PReducMode, ex::TAssign)
+
+	@gensym siz ty
+
+	r = ex.rhs
+
+	if isa(ex.lhs, TSym)
+		code = quote
+			($ty) = $(type_inference(ex))
+			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
+			if $(r.dim) == 1
+				$(ex.lhs.e) = Array(($ty), (1, ($siz)[2]))
+			elseif $(r.dim) == 2
+				$(ex.lhs.e) = Array(($ty), (($siz)[1],))
+			else
+				throw(DeExpr.DeError("DeExpr supports partial reduction along dim 1 or 2."))
+			end
+		end
+	else
+		code = quote
+			($ty) = $(type_inference(ex.lhs))
+			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
+			if length($siz) == 1
+				($siz) = (($siz)[1], 1)
+			end
+			if !( ($(r.dim) == 1) || ($(r.dim) == 2) )
+				throw(DeExpr.DeError("DeExpr supports partial reduction along dim 1 or 2."))
+			end
+		end
+	end
+
+	(code, (siz, ty))
+end
 
 
 ##########################################################################
@@ -327,6 +371,8 @@ end
 # 	main body compilation
 #
 ##########################################################################
+
+# Element-wise
 
 compose_main(ctx::ScalarContext, mode::ScalarMode, ex::TAssign, ::Nothing) = compose(ctx, mode, ex)
 
@@ -362,90 +408,124 @@ function compose_main(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, siz::
 	code_block(pre, main_loop)
 end
 
+# Full reduction
 
-function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, r::TReduc, info)
-	@gensym n i x1 x2
+function compose_reduc_core(ctx::ScalarContext, mode::EWiseMode, r::TReduc, 
+	ty::Symbol, s::Symbol, n::Symbol, idxinfo...)
 
-	na = length(r.args)
-	s = info[1]
-	siz = info[2]
-
-	if na == 1
-		arg1_code = compose(ctx, mode, r.args[1], i)
-		arg1_pre  = arg1_code[1]
-		arg1_calc = arg1_code[2]
-		quote
-			($n) = prod($siz)
-			($arg1_pre)
-			for ($i) = 1 : ($n)
-				($x1) = ($arg1_calc)
-				$(reduc_update(r.fun, s, x1))
-			end
-			$(reduc_post(r.fun, s, n))
-		end
-	elseif na == 2
-		arg1_code = compose(ctx, mode, r.args[1], i)
-		arg2_code = compose(ctx, mode, r.args[2], i)
-		arg1_pre  = arg1_code[1]
-		arg2_pre  = arg2_code[1]
-		arg1_calc = arg1_code[2]
-		arg2_calc = arg2_code[2]
-		quote
-			($n) = prod($siz)
-			($arg1_pre)
-			($arg2_pre)
-			for ($i) = 1 : ($n)
-				($x1) = ($arg1_calc)
-				($x2) = ($arg2_calc)
-				$(reduc_update(r.fun, s, x1, x2))
-			end
-			$(reduc_post(r.fun, s, n))
-		end
-	end
-end
-
-function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, r::TReduc, info)
-	@gensym m n i j x1 x2
+	@gensym x1 x2
 
 	na = length(r.args)
-	s = info[1]
-	siz = info[2]
+	tfun = TFun{r.fun}()
 
 	if na == 1
-		arg1_code = compose(ctx, mode, r.args[1], i, j)
-		arg1_pre  = arg1_code[1]
-		arg1_calc = arg1_code[2]
-		quote
-			($m), $(n) = DeExpr.to_size2d(($siz))
-			($arg1_pre)
-			for ($j) = 1 : ($n), ($i) = 1 : ($m)
-				($x1) = ($arg1_calc)
-				$(reduc_update(r.fun, s, x1))
-			end
-			$(reduc_post(r.fun, s, siz))
-		end
+		arg1_pre, arg1_calc = compose(ctx, mode, r.args[1], idxinfo...)
+		rempty, rinit, rupdate, rpost = reduc_computation(tfun, ty, s, n, x1)
+		arg_pre = arg1_pre
+		arg_calc = assignment(x1, arg1_calc)
 	elseif na == 2
-		arg1_code = compose(ctx, mode, r.args[1], i, j)
-		arg2_code = compose(ctx, mode, r.args[2], i, j)
-		arg1_pre  = arg1_code[1]
-		arg2_pre  = arg2_code[1]
-		arg1_calc = arg1_code[2]
-		arg2_calc = arg2_code[2]
-		quote
-			($m), $(n) = DeExpr.to_size2d(($siz))
-			($arg1_pre)
-			($arg2_pre)
-			for ($j) = 1 : ($n), ($i) = 1 : ($m)
-				($x1) = ($arg1_calc)
-				($x2) = ($arg2_calc)
-				$(reduc_update(r.fun, s, x1, x2))
-			end
-			$(reduc_post(r.fun, s, siz))
-		end
+		arg1_pre, arg1_calc = compose(ctx, mode, r.args[1], idxinfo...)
+		arg2_pre, arg2_calc = compose(ctx, mode, r.args[2], idxinfo...)
+		rempty, rinit, rupdate, rpost = reduc_computation(tfun, ty, s, n, x1, x2)
+		arg_pre = code_block(arg1_pre, arg2_pre)
+		arg_calc = code_block(
+			assignment(x1, arg1_calc),
+			assignment(x2, arg2_calc)
+		)
 	end
+
+	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost)
 end
+
+
+function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, l::TExpr, r::TReduc, info)
+	@gensym n i
+	s, siz, ty = info
+
+	# computation kernels
+
+	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
+		ctx, mode, r, ty, s, n, i)
+
+	# store back statement
+
+	if isa(l, TSym)
+		store_back = quote end
+	else
+		store_back = :( $(compose(ctx, ScalarMode(), l)) = ($s) ) 
+	end
+
+	flatten_code_block(
+		assignment(n, fun_call(qname(:to_length), siz)),
+		arg_pre,
+		assignment(s, rempty),
+		for_statement( :( ($i) = 1 : ($n) ), code_block(
+			arg_calc,
+			rupdate
+		) ),
+		rpost,
+		store_back
+	)
+end
+
+
+function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, l::TExpr, r::TReduc, info)
+	@gensym len m n i j
+	s, siz, ty = info
+
+	# computation kernels
+
+	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
+		ctx, mode, r, ty, s, len, i, j)
+
+	# store back statement
+
+	if isa(l, TSym)
+		store_back = quote end
+	else
+		store_back = :( $(compose(ctx, ScalarMode(), l)) = ($s) ) 
+	end
+
+	# major block (for where n > 0)
+
+	mblock = flatten_code_block(
+		arg_pre,
+		assignment(s, rempty),
+		for_statement( :( ($j) = 1 : ($n) ), code_block(
+			for_statement( :( ($i) = 1 : ($m) ), code_block(
+				arg_calc,
+				rupdate
+			) )
+		) ),
+		rpost
+	)
+
+	# wrap up 
+
+	flatten_code_block(
+		if_statement( :(length($siz) == 1), 
+			code_block(
+				assignment(m, :(($siz)[1]) ),
+				assignment(n, :(1) ),
+				assignment(len, m),
+			),
+			code_block(
+				assignment(m, :(($siz)[1]) ),
+				assignment(n, :(($siz)[2]) ),
+				assignment(len, fun_call(:*, m, n)),
+			)
+		),
+		if_statement( :( ($len) > 0 ),
+			mblock,
+			assignment(s, rempty)
+		),
+		store_back
+	)
+end
+
 
 function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, info)
+	lhs = ex.lhs
 	rhs = ex.rhs
 
 	rmode = rhs.arg_mode
@@ -453,9 +533,43 @@ function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, info)
 		rmode = EWiseMode{1}()
 	end
 
-	compose_reduc_main(ctx, rmode, rhs, info)
+	main = compose_reduc_main(ctx, rmode, lhs, rhs, info)
 end
 
+
+function compose_main(ctx::ScalarContext, mode::PReducMode, ex::TAssign, info)
+	lhs = ex.lhs
+	rhs = ex.rhs
+	@assert length(rhs.args) == 1
+
+	siz, ty = info
+
+	@gensym m n i j s x1
+
+	arg1_pre, arg1_calc = compose(ctx, EWiseMode{2}(), rhs.args[1], i, j)
+	lhs_i_pre, lhs_i = compose_lhs(ctx, EWiseMode{1}(), lhs, i)
+	lhs_j_pre, lhs_j = compose_lhs(ctx, EWiseMode{1}(), lhs, j)
+
+	quote
+		($m), ($n) = ($siz)
+		if ($(rhs.dim) == 1)
+			($lhs_j_pre)
+			($arg1_pre)
+			for ($j) = 1 : ($n)
+				($s) = $(reduc_init(rhs.fun, ty))
+				for ($i) = 1 : ($m)
+					($x1) = ($arg1_calc)
+					$(reduc_update(rhs.fun, s, x1))
+				end
+				($lhs_j) = ($s)
+			end
+		else  # rhs.dim == 2
+		end
+	end
+end
+
+
+# Fast full reduction
 
 function compile_fast_reduc(ctx::ScalarContext, iex::TExpr, ex::TAssign)
 	if !(isa(ex.lhs, TSym) && isa(ex.rhs, TReduc))
@@ -474,14 +588,15 @@ function compile_fast_reduc(ctx::ScalarContext, iex::TExpr, ex::TAssign)
 	end
 
 	s = ex.lhs.e
-	init = assignment(s, reduc_init(ex.rhs.fun, ty))
-	main = compose_reduc_main(ctx, mode, ex.rhs, (s, siz))
-	flatten_code_block(init, siz_infer, main)
+	main = compose_reduc_main(ctx, mode, ex.lhs, ex.rhs, (s, siz, ty))
+	flatten_code_block(siz_infer, main)
 end
 
 function compile_fast_reduc(ctx::ScalarContext, iex::Expr, ex::Expr)
 	compile_fast_reduc(ctx, texpr(iex), texpr(ex))
 end
+
+
 
 
 ##########################################################################
