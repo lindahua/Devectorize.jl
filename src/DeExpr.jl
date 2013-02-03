@@ -32,8 +32,6 @@ export
 
 	compile,
 	compile_fast_reduc,
-	get,
-	to_size2d,
 
 	# scalar_backend
 

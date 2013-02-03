@@ -134,8 +134,7 @@ function promote_ewise_tmode(m1::EWiseMode, m2::EWiseMode)
 	throw(DeError("Incompatible ewise mode."))
 end
 
-promote_ewise_tmode(m1::TMode, m2::TMode, 
-	m3::TMode...) = promote_ewise_tmode(promote_ewise_tmode(m1, m2), promote_ewise_tmode(m3...))
+promote_ewise_tmode(m1::TMode, m2::TMode, m3::TMode) = promote_ewise_tmode(promote_ewise_tmode(m1, m2), m3)
 
 
 
@@ -230,7 +229,15 @@ function tassign(lhs::TExpr, rhs::TExpr)
 
 	elseif isa(lhs, TRef)
 		@assert isa(lhs, TEWise)
-		mode = promote_ewise_tmode(tmode(lhs), tmode(rhs))
+		rmode = tmode(rhs)
+		if isa(rmode, EWiseMode) || isa(rmode, ScalarMode)
+			mode = promote_ewise_tmode(tmode(lhs), rmode)
+		elseif isa(rmode, PReducMode)
+			mode = PReducMode()
+		else
+			println(rmode)
+			throw(DeError("Incompatible lhs and rhs."))
+		end
 
 	else
 		throw(DeError("Incompatible modes between lhs and rhs."))

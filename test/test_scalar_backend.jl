@@ -231,7 +231,7 @@ r = zeros(1)
 @devec r[1] = sum(a)
 @test isequal(r, [sum(a)])
 
-@inspect_devec r = sum(a)
+@devec r = sum(a)
 @test isequal(r, sum(a))
 
 @devec r = sum(a[:,:])
@@ -266,6 +266,56 @@ r = zeros(1)
 
 @devec r = dot(abc[:,:], abc)
 @test isequal(r, dot(abc[:], abc[:]))
+
+#################################################
+#
+#	partial reduction
+#
+#################################################
+
+@devec r = sum(abc, 1)
+@test isequal(r, sum(abc, 1))
+
+@devec r = sum(abc, 2)
+@test isequal(r, sum(abc, 2))
+
+r = zeros(size(abc, 2))
+r0 = r
+@devec r[:] = sum(abc, 1)
+@test r === r0
+@test isequal(r, vec(sum(abc, 1)))
+
+r = zeros(size(abc, 1))
+r0 = r
+@devec r[:] = sum(abc, 2)
+@test r === r0
+@test isequal(r, vec(sum(abc, 2)))
+
+dim = 1
+r = sum(abc, dim)
+@test isequal(r, sum(abc, 1))
+
+dim = 2
+r = sum(abc, dim)
+@test isequal(r, sum(abc, 2))
+
+@devec r = mean(abc, 1)
+@test isequal(r, mean(abc, 1))
+
+@devec r = mean(abc, 2)
+@test isequal(r, mean(abc, 2))
+
+@devec r = max(abc, 1)
+@test isequal(r, max(abc, 1))
+
+@devec r = max(abc, 2)
+@test isequal(r, max(abc, 2))
+
+@devec r = min(abc, 1)
+@test isequal(r, min(abc, 1))
+
+@devec r = min(abc, 2)
+@test isequal(r, min(abc, 2))
 
 
 #################################################

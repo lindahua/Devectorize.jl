@@ -238,7 +238,7 @@ function reduc_computation(f::TFun{:(sum)}, ty::Symbol, s::Symbol, n::Symbol, xs
 	empty_val = :( zero($ty) )
 	init_val = :( $(xs[1]) )
 	updater = :( $s += $(xs[1]) )
-	post = quote end
+	post = nothing
 	(empty_val, init_val, updater, post)
 end
 
@@ -246,7 +246,7 @@ function reduc_computation(f::TFun{:(max)}, ty::Symbol, s::Symbol, n::Symbol, xs
 	empty_val = :( typemin($ty) )
 	init_val = :( $(xs[1]) )
 	updater = :( $s = max($s, $(xs[1])) )
-	post = quote end
+	post = nothing
 	(empty_val, init_val, updater, post)
 end
 
@@ -254,7 +254,7 @@ function reduc_computation(f::TFun{:(min)}, ty::Symbol, s::Symbol, n::Symbol, xs
 	empty_val = :( typemax($ty) )
 	init_val = :( $(xs[1]) )
 	updater = :( $s = min($s, $(xs[1])) )
-	post = quote end
+	post = nothing
 	(empty_val, init_val, updater, post)
 end
 
@@ -270,7 +270,7 @@ function reduc_computation(f::TFun{:(dot)}, ty::Symbol, s::Symbol, n::Symbol, xs
 	empty_val = :( zero($ty) )
 	init_val = :( $(xs[1]) * $(xs[2]) )
 	updater = :( $s += $(xs[1]) * $(xs[2]) )
-	post = quote end
+	post = nothing
 	(empty_val, init_val, updater, post)
 end
 
@@ -344,7 +344,7 @@ function compose_init(ctx::ScalarContext, mode::PReducMode, ex::TAssign)
 			if $(r.dim) == 1
 				$(ex.lhs.e) = Array(($ty), (1, ($siz)[2]))
 			elseif $(r.dim) == 2
-				$(ex.lhs.e) = Array(($ty), (($siz)[1],))
+				$(ex.lhs.e) = Array(($ty), (($siz)[1], 1))
 			else
 				throw(DeExpr.DeError("DeExpr supports partial reduction along dim 1 or 2."))
 			end
@@ -381,12 +381,7 @@ function compose_main(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, len::
 	@gensym i
 	(pre, kernel) = compose(ctx, mode, ex, i)
 	
-	main_loop = quote
-		for ($i) = 1 : ($len)
-			($kernel)
-		end
-	end
-
+	main_loop = for_statement(i, 1, len, kernel)
 	code_block(pre, main_loop)
 end
 
@@ -405,12 +400,20 @@ function compose_main(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, siz::
 		end
 	end
 
+	main = code_block(
+		assignment(m, :(($siz)[1])),
+		assignment(n, :(($siz)[2])),
+		for_statement(j, 1, n, 
+			for_statement(i, 1, m, kernel)
+		)
+	)
+
 	code_block(pre, main_loop)
 end
 
 # Full reduction
 
-function compose_reduc_core(ctx::ScalarContext, mode::EWiseMode, r::TReduc, 
+function compose_reduc_core(ctx::ScalarContext, mode::EWiseMode, r::Union(TReduc, TPReduc),  
 	ty::Symbol, s::Symbol, n::Symbol, idxinfo...)
 
 	@gensym x1 x2
@@ -459,7 +462,7 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, l::TExpr, r:
 		assignment(n, fun_call(qname(:to_length), siz)),
 		arg_pre,
 		assignment(s, rempty),
-		for_statement( :( ($i) = 1 : ($n) ), code_block(
+		for_statement( i, 1, n, code_block(
 			arg_calc,
 			rupdate
 		) ),
@@ -491,8 +494,8 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, l::TExpr, r:
 	mblock = flatten_code_block(
 		arg_pre,
 		assignment(s, rempty),
-		for_statement( :( ($j) = 1 : ($n) ), code_block(
-			for_statement( :( ($i) = 1 : ($m) ), code_block(
+		for_statement( j, 1, n, code_block(
+			for_statement( i, 1, m, code_block(
 				arg_calc,
 				rupdate
 			) )
@@ -544,28 +547,66 @@ function compose_main(ctx::ScalarContext, mode::PReducMode, ex::TAssign, info)
 
 	siz, ty = info
 
-	@gensym m n i j s x1
+	@gensym m n nm1 vlen i j s
 
-	arg1_pre, arg1_calc = compose(ctx, EWiseMode{2}(), rhs.args[1], i, j)
+	# computation kernels
+
+	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
+		ctx, EWiseMode{2}(), rhs, ty, s, vlen, i, j)
+
 	lhs_i_pre, lhs_i = compose_lhs(ctx, EWiseMode{1}(), lhs, i)
 	lhs_j_pre, lhs_j = compose_lhs(ctx, EWiseMode{1}(), lhs, j)
 
-	quote
-		($m), ($n) = ($siz)
-		if ($(rhs.dim) == 1)
-			($lhs_j_pre)
-			($arg1_pre)
-			for ($j) = 1 : ($n)
-				($s) = $(reduc_init(rhs.fun, ty))
-				for ($i) = 1 : ($m)
-					($x1) = ($arg1_calc)
-					$(reduc_update(rhs.fun, s, x1))
-				end
-				($lhs_j) = ($s)
-			end
-		else  # rhs.dim == 2
-		end
+	rpost2 = nothing
+	if rpost != nothing
+		rpost2 = for_statement(i, 1, m, code_block(
+			assignment(s, lhs_i),
+			rpost,
+			:(($lhs_i) = ($s))
+		) )
 	end
+
+	# main code
+
+	code_block(
+		assignment(m, :(($siz)[1])),
+		assignment(n, :(($siz)[2])),
+		if_statement( :( $(rhs.dim) == 1 ), 
+			flatten_code_block(  # column-wise
+				assignment(vlen, m),
+				lhs_j_pre,
+				arg_pre,
+				for_statement( j, 1, n, flatten_code_block(
+					assignment(s, rempty),
+					for_statement( i, 1, m, code_block(
+						arg_calc,
+						rupdate
+					) ),
+					rpost,
+					:( ($lhs_j) = ($s) )
+				) )
+			),
+			flatten_code_block(  # row-wise
+				assignment(vlen, n),
+				lhs_i_pre,
+				arg_pre,
+				assignment(j, 1),
+				for_statement( i, 1, m,  code_block(
+					arg_calc,
+					:( $(lhs_i) = ($rinit) )
+				)),
+				for_statement( j, 2, n, 
+					for_statement(i, 1, m, code_block(
+						arg_calc,
+						assignment(s, lhs_i),
+						rupdate,
+						:(($lhs_i) = ($s))
+					))
+				),
+				rpost2
+			)
+		)
+	)
 end
 
 

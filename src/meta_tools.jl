@@ -51,6 +51,10 @@ function assignment(lhs, rhs)
 	expr(:(=), lhs, rhs)
 end
 
+function if_statement(con, tblock)
+	expr(:if, con, tblock)
+end
+
 function if_statement(con, tblock, fblock)
 	expr(:if, con, tblock, fblock)
 end
@@ -58,6 +62,11 @@ end
 function for_statement(head, body)
 	expr(:for, head, body)
 end
+
+function for_statement(i::Symbol, si::TIndex, ei::TIndex, body)
+	expr(:for, :( ($i) = ($si) : ($ei) ), body)
+end
+
 
 
 ##########################################################################
