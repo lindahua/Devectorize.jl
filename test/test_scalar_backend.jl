@@ -246,6 +246,12 @@ j = 3
 @devec r = min(c)
 @test isequal(r, min(c))
 
+@devec r = mean(a)
+@test isequal(r, mean(a))
+
+@devec r = mean(abc[:,:])
+@test isequal(r, mean(abc))
+
 @devec r = dot(a, b)
 @test isequal(r, dot(a, b))
 

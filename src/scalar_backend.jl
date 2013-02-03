@@ -253,6 +253,16 @@ function reduc_update(f::Symbol, s::Symbol, args::Symbol...)
 end
 
 
+div_size(x::Real, n::Int) = x / n
+div_size(x::Real, s::(Int,)) = x / s[1]
+div_size(x::Real, s::(Int,Int)) = x / (s[1] * s[2])
+
+function reduc_post(f::Symbol, s::Symbol, n::Symbol)
+	f == (:mean) ? :( $s = DeExpr.div_size($s, $n) ) : (quote end)
+end
+
+
+
 ##########################################################################
 #
 # 	init-part composition
@@ -369,6 +379,7 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, r::TReduc, s
 				($x1) = ($arg1_calc)
 				$(reduc_update(r.fun, s, x1))
 			end
+			$(reduc_post(r.fun, s, n))
 		end
 	elseif na == 2
 		arg1_code = compose(ctx, mode, r.args[1], i)
@@ -387,6 +398,7 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, r::TReduc, s
 				($x2) = ($arg2_calc)
 				$(reduc_update(r.fun, s, x1, x2))
 			end
+			$(reduc_post(r.fun, s, n))
 		end
 	end
 end
@@ -408,6 +420,7 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, r::TReduc, s
 				($x1) = ($arg1_calc)
 				$(reduc_update(r.fun, s, x1))
 			end
+			$(reduc_post(r.fun, s, siz))
 		end
 	elseif na == 2
 		arg1_code = compose(ctx, mode, r.args[1], i, j)
@@ -426,6 +439,7 @@ function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, r::TReduc, s
 				($x2) = ($arg2_calc)
 				$(reduc_update(r.fun, s, x1, x2))
 			end
+			$(reduc_post(r.fun, s, siz))
 		end
 	end
 end
