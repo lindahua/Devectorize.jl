@@ -73,18 +73,21 @@ type TMap <: TEWise
 	fun::Symbol
 	args::(TEWise...,)
 	mode::TMode
+	deps::Union(Array{TExpr}, Nothing)
 end
 
 type TReduc <: TExpr
 	fun::Symbol
 	args::(TEWise...,)
 	arg_mode::TMode
+	deps::Union(Array{TExpr}, Nothing)
 end
 
 type TPReduc <: TExpr
 	fun::Symbol
 	args::(TEWise...,)
 	dim::TIndex
+	deps::Union(Array{TExpr}, Nothing)
 end
 
 typealias TFunCall Union(TMap,TReduc,TPReduc)
@@ -169,42 +172,62 @@ trefrow(x::Symbol, i::TIndex) = TRefRow(x, i)
 is_ewise_call(f::Symbol, N::Int) = isa(get_op_kind(TCallSig{f, N}()), EWiseOp)
 is_reduc_call(f::Symbol, N::Int) = isa(get_op_kind(TCallSig{f, N}()), ReducOp)
 
-function check_all_ewise_args(args::(TExpr...,))
-	if !all([isa(a, TEWise) for a in args])
-		throw(DeError("Unexpected non-ewise arguments"))
+function check_funcall_args(args::TExpr...)
+	na = length(args)
+	deps = nothing
+
+	pargs = Array(TExpr, na)
+
+	for i = 1 : na
+		a = args[i]
+		if isa(a, TEWise)
+			pargs[i] = a
+		elseif isa(a, TReduc) || isa(a, TPReduc)
+			dep_sym = gensym("dep")
+			pargs[i] = isa(a, TReduc) ? TScalarSym(dep_sym) : TSym(dep_sym)
+			if deps == nothing
+				deps = TExpr[]
+			end
+			push!(deps, tassign(TSym(dep_sym), a))
+		else
+			throw(DeError("Arguments in unsupported form."))
+		end
 	end
+	(tuple(pargs...), deps)
 end
 
 # due to intricate semantics of partial reduction in Julia syntax
 # we here hand-coded the specific form to be recognized as partial reduction
 
-function recognize_partial_reduction(f::Symbol, a::(TExpr...,))
+function recognize_partial_reduction(f::Symbol, a::TExpr...)
 	if f == (:sum) || f == (:mean)
 		if length(a) == 2 && (isa(a[2], TSym) || isa(a[2], TNum))
-			TPReduc(f, (a[1],), a[2].e)
+			fargs, deps = check_funcall_args(a[1])
+			TPReduc(f, fargs, a[2].e, deps)
 		end
 	elseif f == (:max) || f == (:min)
 		if length(a) == 3 && isa(a[2], TEmpty) && (isa(a[3], TSym) || isa(a[3], TNum))
-			TPReduc(f, (a[1],), a[3].e)
+			fargs, deps = check_funcall_args(a[1])
+			TPReduc(f, fargs, a[3].e, deps)
 		end
 	end
 end
 
 
-function tcall(f::Symbol, args::(TExpr...,))
+function tcall(f::Symbol, args)
 	n = length(args)
 	if is_ewise_call(f, n)
-		check_all_ewise_args(args)
-		mode = promote_ewise_tmode([tmode(a) for a in args]...)
-		TMap(f, args, mode)
+		fargs, deps = check_funcall_args(args...)
+		mode = promote_ewise_tmode([tmode(a) for a in fargs]...)
+		TMap(f, fargs, mode, deps)
 
 	elseif is_reduc_call(f, n)
-		check_all_ewise_args(args)
-		arg_mode = promote_ewise_tmode([tmode(a) for a in args]...)
-		TReduc(f, args, arg_mode)
+		fargs, deps = check_funcall_args(args...)
+		arg_mode = promote_ewise_tmode([tmode(a) for a in fargs]...)
+		TReduc(f, fargs, arg_mode, deps)
 
 	else
-		ex = recognize_partial_reduction(f, args)
+		ex = recognize_partial_reduction(f, args...)
 		if ex == nothing
 			throw(DeError("Unrecognized function $f with $n arguments (in DeExpr)"))
 		end
@@ -305,7 +328,7 @@ function texpr(ex::Expr)
 		if !isa(fsym, Symbol)
 			throw(DeError("call-expressions with non-symbol function name: $fsym"))
 		end
-		tcall(fsym, map(texpr, tuple(ex.args[2:]...)))
+		tcall(fsym, map(texpr, ex.args[2:]))
 		
 	elseif ex.head == :(ref)
 

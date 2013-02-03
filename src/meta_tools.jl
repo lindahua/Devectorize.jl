@@ -149,6 +149,7 @@ size_inference(ex::TMap) = args_size_inference(ex.args)
 
 type_inference(ex::TNum) = :( typeof($(ex.e)) )
 type_inference(ex::TSym) = :( eltype($(ex.e)) )
+type_inference(ex::TScalarSym) = :( typeof($(ex.e)) )
 type_inference(ex::TRefScalar) = :( eltype($(ex.host)) )
 type_inference(ex::TRef) = :( eltype($(ex.host)) )
 

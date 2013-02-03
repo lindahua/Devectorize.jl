@@ -42,9 +42,35 @@ function compile(ctx::EvalContext, top_expr::Expr)
 end
 
 
+function add_deps_to_queue(q::Array{TExpr, 1}, ex::TExpr)
+	if isa(ex, TFunCall) 
+		for a in ex.args
+			add_deps_to_queue(q, a)
+		end
+		if ex.deps != nothing && !isempty(ex.deps)
+			for d in ex.deps
+				add_deps_to_queue(q, d)
+				push!(q, d)
+			end
+		end
+	elseif isa(ex, TAssign)
+		add_deps_to_queue(q, ex.rhs)
+	end
+end
+
+
 function compile(ctx::EvalContext, top_expr::TAssign)
-	mode = tmode(top_expr)
-	compile(ctx, mode, top_expr)
+	dep_queue = TExpr[]
+	add_deps_to_queue(dep_queue, top_expr)
+
+	if isempty(dep_queue)
+		mode = tmode(top_expr)
+		compile(ctx, mode, top_expr)
+	else
+		push!(dep_queue, top_expr)
+		codes = [compile(ctx, tmode(e), e) for e in dep_queue]
+		code_block(codes...)
+	end
 end
 
 function compile(ctx::EvalContext, mode::TMode, ex::TAssign)
