@@ -5,6 +5,7 @@ import DeExpr.@devec
 import DeExpr.@inspect_devec
 import DeExpr.@fast_reduc
 import DeExpr.@inspect_fast_reduc
+import DeExpr.sqr
 using Test
 
 # tools to help testing
@@ -316,6 +317,12 @@ r = sum(abc, dim)
 
 @devec r = min(abc, 2)
 @test isequal(r, min(abc, 2))
+
+@devec r = sum(sqr(abc), 1)
+@test isequal(r, sum(abc .* abc, 1))
+
+@devec r = sum(sqr(abc), 2)
+@test isequal(r, sum(abc .* abc, 2))
 
 
 #################################################
