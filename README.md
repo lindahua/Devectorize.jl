@@ -1,4 +1,4 @@
-## DeExpr -- A Julia Framework for De-vectorized Expression Evaluation
+## DeExpr -- A Julia Framework for De-vectorized Evaluation
 
 In many programming languages (including Julia), expressions are immediately evaluated upon construction. This simple strategy often results in less than optimal behaviors, which, for example, include *creation of unnecessary temporaries* and *repeated memory round-trips*. Consider the following example,
 
