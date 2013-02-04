@@ -50,7 +50,7 @@ Here is a table of benchmark results on some typical cases.
 | rowwise-sum     |   1.0000   | 4.2734x |  4.1988x |
 | colwise-eucdist |   1.0000   | 5.9502x |  5.8356x |
 
-*The result was obtained with Julia (commit 3f92b13210 (2013-02-03)) on Mac OS X 10.8, using the script test/bench_devec.jl, which comes with the DeExpr package.*
+*The result was obtained with Julia ``commit 3f92b13210 (2013-02-03)`` on Mac OS X 10.8, using the script ``test/bench_devec.jl``, which comes with the DeExpr package.*
 
 Here, we use vectorized Julia code as the baseline, and report the performance gains (for example, if the baseline takes 1 sec, and devec takes 0.5sec, then the gain is 2x). We can see that codes tagged with the ``@devec`` macro typically performs 2x to 5x faster than vectorized codes, and is comparable (sometimes even slightly faster than) a hand-coded for loop. 
 
