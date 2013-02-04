@@ -50,23 +50,82 @@ Here is a table of benchmark results on some typical cases.
 | rowwise-sum     |   1.0000   | 4.2734x |  4.1988x |
 | colwise-eucdist |   1.0000   | 5.9502x |  5.8356x |
 
-Here, we use vectorized Julia code as the baseline, and report the performance gain (for example, if the baseline takes 1 sec, and devec takes 0.5sec, then the gain is 2x). We can see that codes marked with ``@devec`` macro typically performs 2x to 5x faster than vectorized codes, and is comparable (sometimes even slightly faster than) a hand-coded for loop. 
+*The result was obtained with Julia (commit 3f92b13210 (2013-02-03)) on Mac OS X 10.8, using the script test/bench_devec.jl, which comes with the DeExpr package.*
 
-You can run the script ``test/bench_devec.jl`` that comes with the *DeExpr* package to test the benchmark on your machine.
+Here, we use vectorized Julia code as the baseline, and report the performance gains (for example, if the baseline takes 1 sec, and devec takes 0.5sec, then the gain is 2x). We can see that codes tagged with the ``@devec`` macro typically performs 2x to 5x faster than vectorized codes, and is comparable (sometimes even slightly faster than) a hand-coded for loop. 
 
 It is important to note that *DeExpr* only recognizes a subset of expressions of Julia (but the most commonly used subset), as listed below.
 
+- Element-wise map of numbers and arrays
 
+```julia
+@devec r = a + b + c
+@devec r = sin(a) + exp(a + 1.0) .* log(c)
+```
+
+Here is the list of operators and functions currently supported by *DeExpr*:
+
+```julia
++, -, .+, .-, .*, ./, .^, max, min, clamp, blend,
+.==, .!=, .<, .>, .<=, .>=, 
+sqrt, cbrt, sqr, rcp, floor, ceil, round, trunc,
+exp, log, log10, exp2, log2, expm1, log1p, 
+sin, cos, tan, asin, acos, atan, 
+sinh, cosh, tanh, asinh, acosh, atanh,
+erf, erfc, gamma, lgamma, digamma
+```
+**Note:** These three functions: ``sqr``(x -> x * x), ``rcp``(x -> 1 / x), and ``blend``((c, x, y) -> c ? x : y) are not in the Base module of Julia. They are provided by *DeExpr* as extensions to make it easier to write vectorized expressions (and then ``@devec`` it).
  
+- Simple references
+
+```julia
+@devec r = x[:,1] + y[:,2]
+@devec r = a[i,:] .* b
+@devec r[:,j] = x + sin(a[:,j])
+```
+
+Simple reference here means the reference expressions in either of the following forms: 
+```a[:], a[i], a[i, j], a[:, :], a[:, i], a[i, :]``, where i can be either an integer or a symbol that refers to an integer variable. Reference expressions can appear in both left and right hand side of an assignment.
+
+Support of more flexible references is planned for future releases.
+
+- Op-assignment
+
+```julia
+@devec r += a
+@devec r[:,i] .*= sin(a)
+```
+
+*DeExpr* will automatically translate them into ordinary assignment expressions.
 
 
+- Full/Colwise/Rowwise reduction
+
+```julia
+@devec r = sum(a + b)
+@devec r = max(sin(a), (), 1)
+@devec r[:,j] = mean(a, 2)
+``` 
+
+*DeExpr* currently recognizes five reduction functions ``sum``, ``max``, ``min``, ``mean``, and ``dot``.
 
 
+- Hybrid expressions
 
+Consider the example below, 
 
+```julia
+@devec r = (a - sum(a)) .* b
+```
 
+This seemingly simple expression actually requires two loops to evaluate, one for computing ``sum(a)``, and the other for the top-level element-wise expression. *DeExpr* recognizes such situations, and will emit correct codes to perform the evaluation. For the example above, *DeExpr* will first break the expression into two ones, as 
 
+```julia
+@devec tmp1 = sum(a)
+@devec r = (a - tmp1) .* b
+```
 
+Note that *DeExpr* only breaks expressions only when it is really necessary to do so, and tries to generate as few memory traversals as possible.
 
 
 

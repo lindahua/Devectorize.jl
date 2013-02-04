@@ -102,7 +102,7 @@ for s in [:+, :-]
 	@eval $(register_ewise_mathop(s, 1))
 end
 
-for s in [:+, :-, :.*, :./, :.^, :max, :min]
+for s in [:+, :-, :.+, :.-, :.*, :./, :.^, :max, :min]
 	@eval $(register_ewise_mathop(s, 2))
 end
 
