@@ -43,12 +43,12 @@ Here is a table of benchmark results on some typical cases.
 
 |                 |  julia vec |  @devec  | hand-coded loop |
 | -------------   | -----------|---------|-----------------|
-| simple-ewise    |   1.0000   | 2.5986x |  2.5869x |
-| complex-ewise   |   1.0000   | 2.5934x |  2.5658x |
-| shift-dot       |   1.0000   | 7.8894x |  7.0740x |
-| colwise-sum     |   1.0000   | 1.2844x |  1.2894x |
-| rowwise-sum     |   1.0000   | 4.2734x |  4.1988x |
-| colwise-eucdist |   1.0000   | 5.9502x |  5.8356x |
+| simple-ewise    |   1.0000   | 2.6032x |  2.5719x |
+| complex-ewise   |   1.0000   | 2.4581x |  2.4364x |
+| shift-dot       |   1.0000   | 8.3237x |  8.2959x |
+| colwise-sum     |   1.0000   | 1.3321x |  1.2771x |
+| rowwise-sum     |   1.0000   | 4.2736x |  4.2444x |
+| colwise-eucdist |   1.0000   | 5.6502x |  5.5356x |
 
 *The result was obtained with Julia ``commit 3f92b13210 (2013-02-03)`` on Mac OS X 10.8, using the script ``test/bench_devec.jl``, which comes with the DeExpr package.*
 
