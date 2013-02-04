@@ -5,7 +5,7 @@ export
 	TFun,
 	TCallSig,
 	result_type,
-	sqr, rcp,
+	sqr, rcp, blend,
 
 	# texpr
 
@@ -36,10 +36,6 @@ export
 	# scalar_backend
 
 	ScalarContext,
-	de_arr,
-	de_col,
-	de_row,
-	get,
 
 	# macros
 	@devec,

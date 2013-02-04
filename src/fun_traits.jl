@@ -138,6 +138,14 @@ for s in [:mod, :hypot, :atan2]
 	@eval $(register_ewise_mathop(s, 2))
 end
 
+# blending
+
+blend{T1, T2}(c::Bool, x::T1, x2::T2) = (c ? x : y)
+
+get_op_kind(::TCallSig{:blend, 3}) = EWiseOp()
+result_type(::TFun{:blend}, ::Type{Bool}, T1::Type, T2::Type) = promote_type(T1, T2)
+
+
 # reduction functions
 
 for s in [ :sum, :max, :min, :mean ]
@@ -147,3 +155,5 @@ end
 for s in [ :dot ]
 	@eval $(register_reductor(s, 2))
 end
+
+

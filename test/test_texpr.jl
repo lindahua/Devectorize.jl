@@ -165,6 +165,19 @@ end
 @test_te clamp(a[:], 1, c[:]) 	TMap 	EWiseMode{1}()
 @test_te clamp(1, b[:], c[:]) 	TMap 	EWiseMode{1}()
 
+# comparison expressions
+
+@test_te a .== b 		TMap	EWiseMode{0}()
+@test_te 1 .== a 		TMap 	EWiseMode{0}()
+@test_te a .== 1 		TMap 	EWiseMode{0}()
+@test_te 1 .== 2 		TMap 	ScalarMode()
+
+@test_te a .!= b 		TMap 	EWiseMode{0}()
+@test_te a .< b 		TMap 	EWiseMode{0}()
+@test_te a .> b 		TMap 	EWiseMode{0}()
+@test_te a .<= b 		TMap 	EWiseMode{0}()
+@test_te a .>= b 		TMap 	EWiseMode{0}()
+
 # compound ewise expressions
 
 @test_te a + b .* c 	TMap 	EWiseMode{0}()
@@ -176,6 +189,9 @@ end
 @test_te a + b[:] .* c 		TMap	EWiseMode{1}()
 @test_te a + 3 .* c[:,:]	TMap	EWiseMode{2}()
 @test_te a[0] + 2 .* c[0]	TMap 	ScalarMode()
+
+@test_te blend(a .> 1, c, d)	TMap 	EWiseMode{0}()
+
 
 # reduction expressions
 

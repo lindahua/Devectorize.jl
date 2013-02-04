@@ -343,13 +343,18 @@ end
 
 function texpr(ex::Expr) 
 
-	if ex.head == :(call)
+	if ex.head == :(call) 
 
 		fsym = ex.args[1]
 		if !isa(fsym, Symbol)
 			throw(DeError("call-expressions with non-symbol function name: $fsym"))
 		end
 		tcall(fsym, map(texpr, ex.args[2:]))
+
+	elseif ex.head == :(comparison)
+
+		opsym = ex.args[2]
+		tcall(opsym, map(texpr, [ex.args[1], ex.args[3]]))
 		
 	elseif ex.head == :(ref)
 

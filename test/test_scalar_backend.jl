@@ -6,6 +6,7 @@ import DeExpr.@inspect_devec
 import DeExpr.@fast_reduc
 import DeExpr.@inspect_fast_reduc
 import DeExpr.sqr
+import DeExpr.blend
 using Test
 
 # tools to help testing
@@ -179,6 +180,15 @@ j = 3
 
 @devec r[:] = +(1., 2., 3.)
 @test isequal(r, fill(6., size(a)))
+
+
+# comparison and blend
+
+@devec r = blend(a + 2 .>= b, a + 2, b)
+@test isequal(r, max(a+2, b))
+
+@devec r = blend(a + 2 .<= b, a + 2, b)
+@test isequal(r, min(a + 2, b)) 
 
 
 #################################################
