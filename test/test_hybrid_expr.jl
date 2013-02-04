@@ -36,5 +36,5 @@ abct = [at, bt, ct]
 @devec r = sum(abc, 1) + max(c) .* cv
 @test isequal(r, sum(abc, 1) + max(c) .* cv)
 
-@inspect_devec r = sum(max(abc, (), 2)) + sum(abct, 1) .* (cv + max(b))
+@devec r = sum(max(abc, (), 2)) + sum(abct, 1) .* (cv + max(b))
 @test isequal(r, sum(max(abc, (), 2)) + sum(abct, 1) .* (cv + max(b)) )

@@ -19,7 +19,8 @@ abstract TMode
 type ScalarMode <: TMode end
 type EWiseMode{D} <: TMode end
 type ReducMode <: TMode end
-type PReducMode <: TMode end
+type ColwiseReducMode <: TMode end
+type RowwiseReducMode <: TMode end
 
 type TEmpty <: TExpr end
 
@@ -83,14 +84,19 @@ type TReduc <: TExpr
 	deps::Union(Array{TExpr}, Nothing)
 end
 
-type TPReduc <: TExpr
+type TColwiseReduc <: TExpr
 	fun::Symbol
 	args::(TEWise...,)
-	dim::TIndex
 	deps::Union(Array{TExpr}, Nothing)
 end
 
-typealias TFunCall Union(TMap,TReduc,TPReduc)
+type TRowwiseReduc <: TExpr
+	fun::Symbol
+	args::(TEWise...,)
+	deps::Union(Array{TExpr}, Nothing)
+end
+
+typealias TFunCall Union(TMap, TReduc, TColwiseReduc, TRowwiseReduc)
 
 
 type TAssign{Lhs<:Union(TSym,TRefScalar,TRef), Rhs<:TExpr} <: TExpr
@@ -123,7 +129,8 @@ tmode(ex::TRefRow) = EWiseMode{1}()
 
 tmode(ex::TMap) = ex.mode
 tmode(ex::TReduc) = isa(ex.arg_mode, ScalarMode) ? ScalarMode() : ReducMode()
-tmode(ex::TPReduc) = PReducMode()
+tmode(ex::TColwiseReduc) = ColwiseReducMode()
+tmode(ex::TRowwiseReduc) = RowwiseReducMode()
 
 tmode(ex::TAssign) = ex.mode
 
@@ -182,7 +189,7 @@ function check_funcall_args(args::TExpr...)
 		a = args[i]
 		if isa(a, TEWise)
 			pargs[i] = a
-		elseif isa(a, TReduc) || isa(a, TPReduc)
+		elseif isa(a, TReduc) || isa(a, TColwiseReduc) || isa(a, TRowwiseReduc)
 			dep_sym = gensym("dep")
 			pargs[i] = isa(a, TReduc) ? TScalarSym(dep_sym) : TSym(dep_sym)
 			if deps == nothing
@@ -201,14 +208,28 @@ end
 
 function recognize_partial_reduction(f::Symbol, a::TExpr...)
 	if f == (:sum) || f == (:mean)
-		if length(a) == 2 && (isa(a[2], TSym) || isa(a[2], TNum))
+		if length(a) == 2 && isa(a[2], TNum{Int})
 			fargs, deps = check_funcall_args(a[1])
-			TPReduc(f, fargs, a[2].e, deps)
+			dim = a[2].e
+			if dim == 1
+				TColwiseReduc(f, fargs, deps)
+			elseif dim == 2
+				TRowwiseReduc(f, fargs, deps)
+			else
+				throw(DeError("DeExpr supports either colwise or rowwise reduction."))
+			end
 		end
 	elseif f == (:max) || f == (:min)
-		if length(a) == 3 && isa(a[2], TEmpty) && (isa(a[3], TSym) || isa(a[3], TNum))
+		if length(a) == 3 && isa(a[2], TEmpty) && isa(a[3], TNum{Int})
 			fargs, deps = check_funcall_args(a[1])
-			TPReduc(f, fargs, a[3].e, deps)
+			dim = a[3].e
+			if dim == 1
+				TColwiseReduc(f, fargs, deps)
+			elseif dim == 2
+				TRowwiseReduc(f, fargs, deps)
+			else
+				throw(DeError("DeExpr supports either colwise or rowwise reduction."))
+			end
 		end
 	end
 end
@@ -260,8 +281,8 @@ function tassign(lhs::TExpr, rhs::TExpr)
 		rmode = tmode(rhs)
 		if isa(rmode, EWiseMode) || isa(rmode, ScalarMode)
 			mode = promote_ewise_tmode(tmode(lhs), rmode)
-		elseif isa(rmode, PReducMode)
-			mode = PReducMode()
+		elseif isa(rmode, ColwiseReducMode) || isa(rmode, RowwiseReducMode)
+			mode = rmode
 		else
 			println(rmode)
 			throw(DeError("Incompatible lhs and rhs."))

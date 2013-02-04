@@ -4,35 +4,20 @@ end
 
 ##########################################################################
 #
-# 	array access types
+# 	array access helpers
 #
 ##########################################################################
 
 # const
 
-type DeConst{T<:Real}
-	val::T
-end
-get{T<:Number}(r::DeConst{T}, ::Int) = r.val
-get{T<:Number}(r::DeConst{T}, ::Int, ::Int) = r.val
+get_value(r::Number, ::Int) = r
+get_value(r::Number, ::Int, ::Int) = r
 
 # vector reader
 
-type DeArr{T<:Number}
-	src::Array{T}
-end
-get{T<:Number}(r::DeArr{T}, i::Int) = r.src[i]
-get{T<:Number}(r::DeArr{T}, i::Int, j::Int) = r.src[i,j]
+get_value{T<:Number}(r::Array{T}, i::Int) = r[i]
+get_value{T<:Number}(r::Array{T}, i::Int, j::Int) = r[i, j]
 
-
-# functions to generate accessors
-
-de_arr{T<:Number}(v::T) = DeConst{T}(v)
-de_arr{T<:Number}(a::Array{T}) = DeArr{T}(a)
-
-# others
-
-forward_number(x::Number) = x
 
 
 ##########################################################################
@@ -124,9 +109,8 @@ function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, i::Symbol)
 end
 
 function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TSym, i::Symbol)
-	@gensym rd
-	pre = assignment(rd, fun_call(qname(:de_arr), ex.e))
-	kernel = fun_call(qname(:get), rd, i)
+	pre = nothing
+	kernel = fun_call(qname(:get_value), ex.e, i)
 	(pre, kernel)
 end
 
@@ -179,9 +163,8 @@ function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, i::Symbol,
 end
 
 function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TSym, i::Symbol, j::Symbol)
-	@gensym rd
-	pre = assignment(rd, fun_call(qname(:de_arr), ex.e))
-	kernel = fun_call(qname(:get), rd, i, j)
+	pre = nothing
+	kernel = fun_call(qname(:get_value), ex.e, i, j)
 	(pre, kernel)
 end
 
@@ -195,8 +178,6 @@ end
 # Maps
 
 function compose(ctx::ScalarContext, mode::EWiseMode, ex::TMap, sinfo...)
-	@gensym rd
-
 	if isa(ex.mode, ScalarMode)
 		compose_scalar(ctx, ex)
 	else
@@ -331,8 +312,8 @@ function compose_init(ctx::ScalarContext, mode::ReducMode, ex::TAssign)
 	(code, (s, siz, ty))
 end
 
-function compose_init(ctx::ScalarContext, mode::PReducMode, ex::TAssign)
 
+function compose_init(ctx::ScalarContext, mode::ColwiseReducMode, ex::TAssign)
 	@gensym siz ty
 
 	r = ex.rhs
@@ -341,29 +322,41 @@ function compose_init(ctx::ScalarContext, mode::PReducMode, ex::TAssign)
 		code = quote
 			($ty) = $(type_inference(ex))
 			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
-			if $(r.dim) == 1
-				$(ex.lhs.e) = Array(($ty), (1, ($siz)[2]))
-			elseif $(r.dim) == 2
-				$(ex.lhs.e) = Array(($ty), (($siz)[1], 1))
-			else
-				throw(DeExpr.DeError("DeExpr supports partial reduction along dim 1 or 2."))
-			end
+			$(ex.lhs.e) = Array(($ty), (1, ($siz)[2]))
 		end
 	else
 		code = quote
 			($ty) = $(type_inference(ex.lhs))
 			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
-			if length($siz) == 1
-				($siz) = (($siz)[1], 1)
-			end
-			if !( ($(r.dim) == 1) || ($(r.dim) == 2) )
-				throw(DeExpr.DeError("DeExpr supports partial reduction along dim 1 or 2."))
-			end
 		end
 	end
 
 	(code, (siz, ty))
 end
+
+
+function compose_init(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign)
+	@gensym siz ty
+
+	r = ex.rhs
+
+	if isa(ex.lhs, TSym)
+		code = quote
+			($ty) = $(type_inference(ex))
+			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
+			$(ex.lhs.e) = Array(($ty), (($siz)[1], 1))
+		end
+	else
+		code = quote
+			($ty) = $(type_inference(ex.lhs))
+			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
+		end
+	end
+
+	(code, (siz, ty))
+end
+
+
 
 
 ##########################################################################
@@ -413,7 +406,7 @@ end
 
 # Full reduction
 
-function compose_reduc_core(ctx::ScalarContext, mode::EWiseMode, r::Union(TReduc, TPReduc),  
+function compose_reduc_core(ctx::ScalarContext, mode::EWiseMode, r::Union(TReduc, TColwiseReduc, TRowwiseReduc),  
 	ty::Symbol, s::Symbol, n::Symbol, idxinfo...)
 
 	@gensym x1 x2
@@ -540,22 +533,47 @@ function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, info)
 end
 
 
-function compose_main(ctx::ScalarContext, mode::PReducMode, ex::TAssign, info)
+function compose_main(ctx::ScalarContext, mode::ColwiseReducMode, ex::TAssign, info)
 	lhs = ex.lhs
 	rhs = ex.rhs
 	@assert length(rhs.args) == 1
 
 	siz, ty = info
-
-	@gensym m n nm1 vlen i j s
-
-	# computation kernels
+	@gensym m n i j s
 
 	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
-		ctx, EWiseMode{2}(), rhs, ty, s, vlen, i, j)
-
-	lhs_i_pre, lhs_i = compose_lhs(ctx, EWiseMode{1}(), lhs, i)
+		ctx, EWiseMode{2}(), rhs, ty, s, m, i, j)
 	lhs_j_pre, lhs_j = compose_lhs(ctx, EWiseMode{1}(), lhs, j)
+
+	flatten_code_block( 
+		assignment(m, :(($siz)[1])),
+		assignment(n, :(($siz)[2])),
+		lhs_j_pre,
+		arg_pre,
+		for_statement( j, 1, n, flatten_code_block(
+			assignment(s, rempty),
+			for_statement( i, 1, m, code_block(
+				arg_calc,
+				rupdate
+			) ),
+			rpost,
+			:( ($lhs_j) = ($s) )
+		) )
+	)
+end
+
+
+function compose_main(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign, info)
+	lhs = ex.lhs
+	rhs = ex.rhs
+	@assert length(rhs.args) == 1
+
+	siz, ty = info
+	@gensym m n i j s
+
+	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
+		ctx, EWiseMode{2}(), rhs, ty, s, n, i, j)
+	lhs_i_pre, lhs_i = compose_lhs(ctx, EWiseMode{1}(), lhs, i)
 
 	rpost2 = nothing
 	if rpost != nothing
@@ -566,47 +584,27 @@ function compose_main(ctx::ScalarContext, mode::PReducMode, ex::TAssign, info)
 		) )
 	end
 
-	# main code
-
-	code_block(
+	flatten_code_block(  # row-wise
 		assignment(m, :(($siz)[1])),
 		assignment(n, :(($siz)[2])),
-		if_statement( :( $(rhs.dim) == 1 ), 
-			flatten_code_block(  # column-wise
-				assignment(vlen, m),
-				lhs_j_pre,
-				arg_pre,
-				for_statement( j, 1, n, flatten_code_block(
-					assignment(s, rempty),
-					for_statement( i, 1, m, code_block(
-						arg_calc,
-						rupdate
-					) ),
-					rpost,
-					:( ($lhs_j) = ($s) )
-				) )
-			),
-			flatten_code_block(  # row-wise
-				assignment(vlen, n),
-				lhs_i_pre,
-				arg_pre,
-				assignment(j, 1),
-				for_statement( i, 1, m,  code_block(
-					arg_calc,
-					:( $(lhs_i) = ($rinit) )
-				)),
-				for_statement( j, 2, n, 
-					for_statement(i, 1, m, code_block(
-						arg_calc,
-						assignment(s, lhs_i),
-						rupdate,
-						:(($lhs_i) = ($s))
-					))
-				),
-				rpost2
-			)
-		)
+		lhs_i_pre,
+		arg_pre,
+		assignment(j, 1),
+		for_statement( i, 1, m,  code_block(
+			arg_calc,
+			:( $(lhs_i) = ($rinit) )
+		)),
+		for_statement( j, 2, n, 
+			for_statement(i, 1, m, code_block(
+				arg_calc,
+				assignment(s, lhs_i),
+				rupdate,
+				:(($lhs_i) = ($s))
+			))
+		),
+		rpost2
 	)
+
 end
 
 

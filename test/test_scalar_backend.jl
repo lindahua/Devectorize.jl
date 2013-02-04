@@ -292,14 +292,6 @@ r0 = r
 @test r === r0
 @test isequal(r, vec(sum(abc, 2)))
 
-dim = 1
-r = sum(abc, dim)
-@test isequal(r, sum(abc, 1))
-
-dim = 2
-r = sum(abc, dim)
-@test isequal(r, sum(abc, 2))
-
 @devec r = mean(abc, 1)
 @test isequal(r, mean(abc, 1))
 

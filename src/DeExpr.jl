@@ -39,6 +39,7 @@ export
 	de_arr,
 	de_col,
 	de_row,
+	get,
 
 	# macros
 	@devec,
