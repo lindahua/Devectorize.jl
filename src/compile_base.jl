@@ -33,11 +33,12 @@ abstract OffshoreContext <: EvalContext
 function compile(ctx::EvalContext, top_expr::Expr)
 	# generate codes for cases where lhs is pre-allocated in correct size and type
 
-	if top_expr.head == :(=) || top_expr.head == :(block)
+	h = top_expr.head
+	if h == :(=) || h == :(+=) || h == :(-=) || h == :(.*=) || h == :(./=) || h == :(block)
 		te = texpr(top_expr)
 		compile(ctx, te)
 	else
-		throw(DeError("Top level expression must be either an assignment or a block"))
+		throw(DeError("Top level expression must be either an assignment, op-assignment, or a block"))
 	end
 end
 
@@ -59,7 +60,7 @@ function add_deps_to_queue(q::Array{TExpr, 1}, ex::TExpr)
 end
 
 
-function compile(ctx::EvalContext, top_expr::TAssign)
+function compile(ctx::EvalContext, top_expr::Union(TAssign, TOpAssign))
 	dep_queue = TExpr[]
 	add_deps_to_queue(dep_queue, top_expr)
 
@@ -73,7 +74,7 @@ function compile(ctx::EvalContext, top_expr::TAssign)
 	end
 end
 
-function compile(ctx::EvalContext, mode::TMode, ex::TAssign)
+function compile(ctx::EvalContext, mode::TMode, ex::Union(TAssign, TOpAssign))
 
 	# compose parts
 

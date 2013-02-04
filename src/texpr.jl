@@ -141,6 +141,7 @@ tmode(ex::TColwiseReduc) = ColwiseReducMode()
 tmode(ex::TRowwiseReduc) = RowwiseReducMode()
 
 tmode(ex::TAssign) = ex.mode
+tmode(ex::TOpAssign) = ex.mode
 
 promote_ewise_tmode(m::TMode) = m
 promote_ewise_tmode(m1::ScalarMode, m2::ScalarMode) = ScalarMode()
@@ -309,7 +310,7 @@ end
 
 function topassign(op::Symbol, lhs::TExpr, rhs::TExpr)
 	mode = decide_assign_tmode(lhs, rhs)
-	TAssign{typeof(lhs),typeof(rhs)}(op, lhs, rhs, mode)
+	TOpAssign{typeof(lhs),typeof(rhs)}(op, lhs, rhs, mode)
 end
 
 
