@@ -56,7 +56,7 @@ Here, we use vectorized Julia code as the baseline, and report the performance g
 
 It is important to note that *DeExpr* only recognizes a subset of expressions of Julia (but the most commonly used subset), as listed below.
 
-- Element-wise map of numbers and arrays
+### Element-wise map of numbers and arrays
 
 ```julia
 @devec r = a + b + c
@@ -76,7 +76,7 @@ erf, erfc, gamma, lgamma, digamma
 ```
 **Note:** These three functions: ``sqr``(x -> x * x), ``rcp``(x -> 1 / x), and ``blend``((c, x, y) -> c ? x : y) are not in the Base module of Julia. They are provided by *DeExpr* as extensions to make it easier to write vectorized expressions (and then ``@devec`` it).
  
-- Simple references
+### Simple references
 
 ```julia
 @devec r = x[:,1] + y[:,2]
@@ -89,7 +89,7 @@ Simple reference here means the reference expressions in either of the following
 
 Support of more flexible references is planned for future releases.
 
-- Op-assignment
+### Op-assignment
 
 ```julia
 @devec r += a
@@ -99,7 +99,7 @@ Support of more flexible references is planned for future releases.
 *DeExpr* will automatically translate them into ordinary assignment expressions.
 
 
-- Full/Colwise/Rowwise reduction
+### Full/Colwise/Rowwise reduction
 
 ```julia
 @devec r = sum(a + b)
@@ -110,7 +110,7 @@ Support of more flexible references is planned for future releases.
 *DeExpr* currently recognizes five reduction functions ``sum``, ``max``, ``min``, ``mean``, and ``dot``.
 
 
-- Hybrid expressions
+### Hybrid expressions
 
 Consider the example below, 
 
