@@ -21,7 +21,7 @@ export
 	tmode, 
 	tnum, tsym, tscalarsym, trefscalar, 
 	tref1d, tref2d, trefcol, trefrow,
-	tcall, tassign,
+	tcall, tassign, topassign,
 	texpr,
 
 	# compile_base

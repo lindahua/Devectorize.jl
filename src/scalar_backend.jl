@@ -83,6 +83,17 @@ compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TScalar,
 
 # 1D EWise
 
+# assignment
+
+function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, i::Symbol)
+	lhs_pre, lhs_kernel = compose_lhs(ctx, mode, ex.lhs, i)
+	rhs_pre, rhs_kernel = compose(ctx, mode, ex.rhs, i)
+
+	pre = code_block(lhs_pre, rhs_pre)
+	kernel = assignment(lhs_kernel, rhs_kernel)
+	(pre, kernel)
+end
+
 # LHS
 
 function compose_lhs(ctx::ScalarContext, mode::EWiseMode{1}, ex::TSym, i::Symbol)
@@ -98,15 +109,6 @@ function compose_lhs(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRef1D, i::Symb
 end
 
 # RHS
-
-function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, i::Symbol)
-	lhs_pre, lhs_kernel = compose_lhs(ctx, mode, ex.lhs, i)
-	rhs_pre, rhs_kernel = compose(ctx, mode, ex.rhs, i)
-
-	pre = code_block(lhs_pre, rhs_pre)
-	kernel = assignment(lhs_kernel, rhs_kernel)
-	(pre, kernel)
-end
 
 function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TSym, i::Symbol)
 	pre = nothing
@@ -137,6 +139,18 @@ end
 
 # 2D EWise
 
+# assignment
+
+function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, i::Symbol, j::Symbol)
+	lhs_pre, lhs_kernel = compose_lhs(ctx, mode, ex.lhs, i, j)
+	rhs_pre, rhs_kernel = compose(ctx, mode, ex.rhs, i, j)
+
+	pre = code_block(lhs_pre, rhs_pre)
+	kernel = assignment(lhs_kernel, rhs_kernel)
+	(pre, kernel)
+end
+
+
 # LHS
 
 function compose_lhs(ctx::ScalarContext, mode::EWiseMode{2}, ex::TSym, i::Symbol, j::Symbol)
@@ -152,15 +166,6 @@ function compose_lhs(ctx::ScalarContext, mode::EWiseMode{2}, ex::TRef2D, i::Symb
 end
 
 # RHS
-
-function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, i::Symbol, j::Symbol)
-	lhs_pre, lhs_kernel = compose_lhs(ctx, mode, ex.lhs, i, j)
-	rhs_pre, rhs_kernel = compose(ctx, mode, ex.rhs, i, j)
-
-	pre = code_block(lhs_pre, rhs_pre)
-	kernel = assignment(lhs_kernel, rhs_kernel)
-	(pre, kernel)
-end
 
 function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TSym, i::Symbol, j::Symbol)
 	pre = nothing
@@ -266,7 +271,7 @@ compose_init(ctx::ScalarContext, mode::ScalarMode, ex::TAssign) = (nothing, noth
 
 function compose_init(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
 
-	@gensym len siz ty
+	@gensym siz len ty
 
 	if isa(ex.lhs, TSym)
 		code = code_block(
@@ -357,8 +362,6 @@ function compose_init(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign)
 end
 
 
-
-
 ##########################################################################
 #
 # 	main body compilation
@@ -371,7 +374,7 @@ compose_main(ctx::ScalarContext, mode::ScalarMode, ex::TAssign, ::Nothing) = com
 
 function compose_main(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, len::Symbol)
 
-	@gensym i
+	i = gensym("i")
 	(pre, kernel) = compose(ctx, mode, ex, i)
 	
 	main_loop = for_statement(i, 1, len, kernel)
@@ -636,8 +639,6 @@ function compile_fast_reduc(ctx::ScalarContext, iex::Expr, ex::Expr)
 end
 
 
-
-
 ##########################################################################
 #
 # 	code-generating macros
@@ -645,35 +646,27 @@ end
 ##########################################################################
 
 macro devec(assign_ex) 
-	esc(begin 
-		compile(ScalarContext(), assign_ex)
-	end)
+	esc(compile(ScalarContext(), assign_ex))
 end
 
 macro inspect_devec(assign_ex)
 	let code__ = compile(ScalarContext(), assign_ex)
 		println("$assign_ex ==>")
 		println(code__)
+		esc(code__)
 	end
-	esc(begin 
-		compile(ScalarContext(), assign_ex)
-	end)
 end
 
 macro fast_reduc(info_ex, assign_ex)
-	esc(begin
-		compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
-	end)
+	esc(compile_fast_reduc(ScalarContext(), info_ex, assign_ex))
 end
 
 macro inspect_fast_reduc(info_ex, assign_ex)
 	let code__ = compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
 		println("$assign_ex ==>")
 		println(code__)
+		esc(code__)
 	end
-	esc(begin
-		compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
-	end)
 end
 
 

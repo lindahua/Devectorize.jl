@@ -60,13 +60,30 @@ function add_deps_to_queue(q::Array{TExpr, 1}, ex::TExpr)
 end
 
 
-function compile(ctx::EvalContext, top_expr::Union(TAssign, TOpAssign))
+function compile(ctx::EvalContext, top_expr::TAssign)
 	dep_queue = TExpr[]
 	add_deps_to_queue(dep_queue, top_expr)
 
 	if isempty(dep_queue)
-		mode = tmode(top_expr)
-		compile(ctx, mode, top_expr)
+		lhs = top_expr.lhs
+		rhs = top_expr.rhs
+
+		if isa(lhs, TSym)
+			if isa(rhs, TSym)
+				# trivial assignment (no need to compile)
+				code_block( assignment(lhs.e, rhs.e) )
+			else
+				# to ensure no alias between left and right hand side
+				tmp = gensym("tmp")
+				emode = top_expr.mode
+				safe_expr = TAssign(TSym(tmp), rhs, emode)
+				flatten_code_block(
+					code_block(compile(ctx, emode, safe_expr)),
+					assignment(lhs.e, tmp) )
+			end
+		else
+			compile(ctx, top_expr.mode, top_expr)
+		end		
 	else
 		push!(dep_queue, top_expr)
 		codes = [compile(ctx, tmode(e), e) for e in dep_queue]
@@ -74,7 +91,7 @@ function compile(ctx::EvalContext, top_expr::Union(TAssign, TOpAssign))
 	end
 end
 
-function compile(ctx::EvalContext, mode::TMode, ex::Union(TAssign, TOpAssign))
+function compile(ctx::EvalContext, mode::TMode, ex::TAssign)
 
 	# compose parts
 

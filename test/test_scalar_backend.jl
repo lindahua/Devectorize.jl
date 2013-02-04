@@ -40,8 +40,10 @@ abct = [at, bt, ct]
 
 #dump_devec(:(r = a))
 @devec r = a
+@test r === a
 @test isequal(r, a)
 
+r = similar(a)
 r0 = r
 @devec r[:] = b
 @test r === r0
@@ -198,11 +200,20 @@ j = 3
 #################################################
 
 r = a
-r0 = r
-dump_devec(:(r += b))
 @devec r += b
-@test r === r0
 @test isequal(r, a + b)
+
+r0 = r
+@devec r[:] += c
+@test r === r0
+@test isequal(r, a + b + c)
+
+r = a
+@devec r .*= 2.
+@test isequal(r, a * 2)
+
+@devec r -= (c + 3)
+@test isequal(r, a * 2 - (c + 3))
 
 
 #################################################

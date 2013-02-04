@@ -105,14 +105,6 @@ type TAssign{Lhs<:Union(TSym,TRefScalar,TRef), Rhs<:TExpr} <: TExpr
 	mode::TMode
 end
 
-type TOpAssign{Lhs<:Union(TSym,TRefScalar,TRef), Rhs <: TExpr} <: TExpr
-	op::Symbol
-	lhs::Lhs
-	rhs::Rhs
-	mode::TMode
-end
-
-
 type TBlock <: TExpr
 	stmts::Array{TExpr}
 	TBlock() = new(TExpr[])
@@ -141,7 +133,6 @@ tmode(ex::TColwiseReduc) = ColwiseReducMode()
 tmode(ex::TRowwiseReduc) = RowwiseReducMode()
 
 tmode(ex::TAssign) = ex.mode
-tmode(ex::TOpAssign) = ex.mode
 
 promote_ewise_tmode(m::TMode) = m
 promote_ewise_tmode(m1::ScalarMode, m2::ScalarMode) = ScalarMode()
@@ -303,16 +294,24 @@ end
 
 
 function tassign(lhs::TExpr, rhs::TExpr)
+	if isa(rhs, TAssign)
+		throw(DeError("chained assignment is not supported by DeExpr"))
+	end
 	mode = decide_assign_tmode(lhs, rhs)
 	TAssign{typeof(lhs),typeof(rhs)}(lhs, rhs, mode)
 end
 
 
-function topassign(op::Symbol, lhs::TExpr, rhs::TExpr)
-	mode = decide_assign_tmode(lhs, rhs)
-	TOpAssign{typeof(lhs),typeof(rhs)}(op, lhs, rhs, mode)
-end
+function topassign(assign_op::Symbol, lhs::TExpr, rhs::TExpr)
+	op = assign_op == :(+=)  ? :(+) :
+		 assign_op == :(-=)  ? :(-) :
+		 assign_op == :(.*=) ? :(.*) :
+		 assign_op == :(./=) ? :(./) :
+		 throw(DeError("Unrecognized assignment-op $op"))
 
+	new_rhs = tcall(op, [lhs, rhs])
+	tassign(lhs, new_rhs)
+end
 
 
 ##########################################################################
