@@ -23,9 +23,9 @@ However, low-level for-loops are often much longer and more difficult to read, w
 
 > Is it possible to combine the elegance of high-level expressions and the performance of low-level for-loops?
 
-The answer is *Yes*. A popular approach to this goal is **delayed evaluation** (often called *lazy evaluation*) -- the basic idea is to delay the evaluation until the results are needed. Let's look at the examples above, we can hold off the evaluation of all the temporaries until the assignment to ``r`` happens -- at this point, an integrated loop is emitted to compute all results in one pass.
+The answer is *Yes*. Let's look at the examples above, we can hold off the evaluation of all the temporaries until the assignment to ``r`` happens -- at this point, an integrated loop is emitted to compute all results in one pass.
 
-The powerful meta-programming framework of Julia makes it possible to deliver this goal using incredibly simple syntax. Taking advantage of this framework, *DeExpr* provides a macro ``@devec``:
+The powerful meta-programming framework of Julia makes it possible to achieve this goal using incredibly simple syntax. Taking advantage of this framework, *DeExpr* provides a macro ``@devec``:
 
 ```julia
 @devec r = a .* b + c .* d + a
