@@ -105,6 +105,14 @@ type TAssign{Lhs<:Union(TSym,TRefScalar,TRef), Rhs<:TExpr} <: TExpr
 	mode::TMode
 end
 
+type TOpAssign{Lhs<:Union(TSym,TRefScalar,TRef), Rhs <: TExpr} <: TExpr
+	op::Symbol
+	lhs::Lhs
+	rhs::Rhs
+	mode::TMode
+end
+
+
 type TBlock <: TExpr
 	stmts::Array{TExpr}
 	TBlock() = new(TExpr[])
@@ -257,7 +265,7 @@ function tcall(f::Symbol, args)
 end
 
 
-function tassign(lhs::TExpr, rhs::TExpr)
+function decide_assign_tmode(lhs::TExpr, rhs::TExpr)
 
 	# TScalarSym can only be created internally, which would never
 	# be placed on the left hand side
@@ -284,16 +292,26 @@ function tassign(lhs::TExpr, rhs::TExpr)
 		elseif isa(rmode, ColwiseReducMode) || isa(rmode, RowwiseReducMode)
 			mode = rmode
 		else
-			println(rmode)
 			throw(DeError("Incompatible lhs and rhs."))
 		end
 
 	else
 		throw(DeError("Incompatible modes between lhs and rhs."))
 	end
+end
 
+
+function tassign(lhs::TExpr, rhs::TExpr)
+	mode = decide_assign_tmode(lhs, rhs)
 	TAssign{typeof(lhs),typeof(rhs)}(lhs, rhs, mode)
 end
+
+
+function topassign(op::Symbol, lhs::TExpr, rhs::TExpr)
+	mode = decide_assign_tmode(lhs, rhs)
+	TAssign{typeof(lhs),typeof(rhs)}(op, lhs, rhs, mode)
+end
+
 
 
 ##########################################################################
@@ -370,6 +388,13 @@ function texpr(ex::Expr)
 		lhs = texpr(ex.args[1])
 		rhs = texpr(ex.args[2])
 		tassign(lhs, rhs)
+
+	elseif ex.head == :(+=) || ex.head == :(-=) || ex.head == :(.*=) || ex.head == :(./=)
+
+		@assert length(ex.args) == 2
+		lhs = texpr(ex.args[1])
+		rhs = texpr(ex.args[2])
+		topassign(ex.head, lhs, rhs)
 
 	elseif ex.head == :(block)
 

@@ -109,11 +109,17 @@ end
 @eval $(register_ewise_mathop(:+, 3))
 @eval $(register_ewise_mathop(:clamp, 3))
 
-# comparison
+# comparison & logical
 
 for s in [:.==, :.!=, :.<, :.>, :.<=, :.>= ]
 	@eval $(register_ewise_pred(s, 2))
 end
+
+get_op_kind(::TCallSig{:&, 2}) = EWiseOp()
+get_op_kind(::TCallSig{:|, 2}) = EWiseOp()
+
+result_type(::TFun{:&}, ::Type{Bool}, ::Type{Bool}) = Bool
+result_type(::TFun{:|}, ::Type{Bool}, ::Type{Bool}) = Bool
 
 # math functions
 
