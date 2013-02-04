@@ -247,6 +247,15 @@ function tcall(f::Symbol, args)
 		arg_mode = promote_ewise_tmode([tmode(a) for a in fargs]...)
 		TReduc(f, fargs, arg_mode, deps)
 
+	elseif f == :(*)
+		throw(DeError("DeExpr does not support *, please use .* to express element-wise multiplication."))
+		
+	elseif f == :(/)
+		throw(DeError("DeExpr does not support /, please use ./ to express element-wise division."))
+		
+	elseif f == :(^)
+		throw(DeError("DeExpr does not support ^, please use .^ to express element-wise power."))
+
 	else
 		ex = recognize_partial_reduction(f, args...)
 		if ex == nothing
@@ -409,7 +418,7 @@ function texpr(ex::Expr)
 			push!(blk.stmts, texpr(e))
 		end
 		blk
-
+		
 	else
 		throw(DeError("Unrecognized expression: $ex"))
 	end

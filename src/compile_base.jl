@@ -37,8 +37,12 @@ function compile(ctx::EvalContext, top_expr::Expr)
 	if h == :(=) || h == :(+=) || h == :(-=) || h == :(.*=) || h == :(./=) || h == :(block)
 		te = texpr(top_expr)
 		compile(ctx, te)
+	elseif h == :(*=)
+		throw(DeError("DeExpr does not support *=, please use .*= for element-wise multiplication."))
+	elseif h == :(/=)
+		throw(DeError("DeExpr does not support /=, please use ./= for element-wise division."))
 	else
-		throw(DeError("Top level expression must be either an assignment, op-assignment, or a block"))
+		throw(DeError("Top level expression must be either an assignment, op-assignment, or a block."))
 	end
 end
 
