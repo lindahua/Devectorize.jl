@@ -13,6 +13,24 @@ get_op_kind{S,N}(::TCallSig{S,N}) = nothing
 
 ##########################################################################
 #
+# 	op-assignment
+#
+#########################################################################
+
+is_opassign(f::TFun) = false
+is_opassign(::TFun{:+=}) = true
+is_opassign(::TFun{:-=}) = true
+is_opassign(::TFun{:.*=}) = true
+is_opassign(::TFun{:./=}) = true
+
+extract_assign_op(::TFun{:+=}) = (:+)
+extract_assign_op(::TFun{:-=}) = (:-)
+extract_assign_op(::TFun{:.*=}) = (:.*)
+extract_assign_op(::TFun{:./=}) = (:./)
+
+
+##########################################################################
+#
 # 	general devices to facilitate function registration
 #
 #########################################################################

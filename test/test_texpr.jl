@@ -9,46 +9,79 @@ using DeExpr
 #
 ###########################################################
 
+# tnum
+
 ex = tnum(1.5)
 @test isa(ex, TNum{Float64})
-@test ex.e == 1.5
+@test ex.val == 1.5
 
-ex = tsym(:a)
-@test isa(ex, TSym)
-@test ex.e == (:a)
+# tvar
 
-ex = tscalarsym(:a)
-@test isa(ex, TScalarSym)
-@test ex.e == (:a)
+ex = tvar(:a)
+@test isa(ex, TVar)
+@test isa(ex.form, Symbol)
+@test ex.form == :(a)
 
-ex = trefscalar(:a, 1)
+ex = tvar(:(a.b))
+@test isa(ex, TVar)
+@test isa(ex.form, Expr)
+@test ex.form == :(a.b)
+
+ex = tvar(:(a.b.c))
+@test isa(ex, TVar)
+@test isa(ex.form, Expr)
+@test ex.form == :(a.b.c)
+
+# tscalarvar
+
+ex = tscalarvar(:a)
+@test isa(ex, TScalarVar)
+@test ex.name == (:a)
+
+###########################################################
+#
+#	reference expression construction
+#
+###########################################################
+
+ex = tref(:(a[1]))
 @test isa(ex, TRefScalar1)
-@test ex.host == (:a)
+@test ex.host == tvar(:a)
 @test ex.i == 1
 
-ex = trefscalar(:a, 1, 2)
+ex = tref(:(a[1,2]))
 @test isa(ex, TRefScalar2)
-@test ex.host == (:a)
+@test isa(ex.host, TVar)
+@test ex.host.form == :a
 @test ex.i == 1
 @test ex.j == 2
 
-ex = tref1d(:a)
+ex = tref(:(a[:]))
 @test isa(ex, TRef1D)
-@test ex.host == (:a)
+@test isa(ex.host, TVar)
+@test ex.host.form == :a
+@test ex.rgn == TColon()
 
-ex = tref2d(:a)
+ex = tref(:(a[:,:]))
 @test isa(ex, TRef2D)
-@test ex.host == (:a)
+@test isa(ex.host, TVar)
+@test ex.host.form == :a
+@test ex.rrgn == :(:)
+@test ex.crgn == :(:)
 
-ex = trefcol(:a, :j)
+ex = tref(:(a[:,j]))
 @test isa(ex, TRefCol)
-@test ex.host == (:a)
+@test isa(ex.host, TVar)
+@test ex.host.form == :a
+@test ex.rrgn == TColon()
 @test ex.icol == (:j)
 
-ex = trefrow(:a, :i)
+ex = tref(:(a[i,:]))
 @test isa(ex, TRefRow)
-@test ex.host == (:a)
+@test isa(ex.host, TVar)
+@test ex.host.form == :a
 @test ex.irow == (:i)
+@test ex.crgn == TColon()
 
 
 ###########################################################

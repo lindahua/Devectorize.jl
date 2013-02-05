@@ -7,13 +7,7 @@
 #
 ##########################################################################
 
-# types
-
-abstract TExpr
-abstract TEWise <: TExpr
-abstract TScalar <: TEWise
-
-typealias TIndex Union(Symbol,Int)
+# modes: the role/functionality of an expression
 
 abstract TMode
 type ScalarMode <: TMode end
@@ -22,53 +16,92 @@ type ReducMode <: TMode end
 type ColwiseReducMode <: TMode end
 type RowwiseReducMode <: TMode end
 
+# types
+
+abstract TExpr
+abstract TEWise <: TExpr
+abstract TScalar <: TEWise
+
 type TEmpty <: TExpr end
 
+# simple expressions
+
 type TNum{T<:Number} <: TScalar
-	e::T
+	val::T
 end
 
-type TScalarSym <: TScalar
-	e::Symbol
+== (u::TNum, v::TNum) = (u.val == v.val)
+!= (u::TNum, v::TNum) = !(u == v)
+
+type TScalarVar <: TScalar
+	name::Symbol
 end
 
-type TSym <: TEWise
-	e::Symbol
+== (u::TScalarVar, v::TScalarVar) = (u.name == v.name)
+!= (u::TScalarVar, v::TScalarVar) = !(u == v)
+
+type TVar <: TEWise
+	form::Union(Symbol,Expr)
 end
+
+== (u::TVar, v::TVar) = (u.form == v.form)
+!= (u::TVar, v::TVar) = !(u == v)
+
+
+# references
+
+abstract TRef <: TEWise
+
+typealias TIndex Union(Symbol,Int)
+
+abstract TRange
+
+type TColon <: TRange end
+type TInterval <: TRange
+	first::TIndex
+	last::Union(TIndex,Nothing)
+end
+
+== (u::TInterval, v::TInterval) = (u.first == v.first) && (u.last == v.last)
+!= (u::TInterval, v::TInterval) = !(u == v)
 
 abstract TRefScalar <: TScalar
 
 type TRefScalar1 <: TRefScalar
-	host::Symbol
+	host::TVar
 	i::TIndex
 end
 
 type TRefScalar2 <: TRefScalar
-	host::Symbol
+	host::TVar
 	i::TIndex
 	j::TIndex
 end
 
-
-abstract TRef <: TEWise
-
 type TRef1D <: TRef
-	host::Symbol
-end
-
-type TRef2D <: TRef
-	host::Symbol
+	host::TVar
+	rgn::TRange
 end
 
 type TRefCol <: TRef
-	host::Symbol
+	host::TVar
+	rrgn::TRange
 	icol::TIndex
 end
 
 type TRefRow <: TRef
-	host::Symbol
+	host::TVar
 	irow::TIndex
+	crgn::TRange
 end
+
+type TRef2D <: TRef
+	host::TVar
+	rrgn::TRange
+	crgn::TRange
+end
+
+# function calls
 
 type TMap <: TEWise
 	fun::Symbol
@@ -99,7 +132,9 @@ end
 typealias TFunCall Union(TMap, TReduc, TColwiseReduc, TRowwiseReduc)
 
 
-type TAssign{Lhs<:Union(TSym,TRefScalar,TRef), Rhs<:TExpr} <: TExpr
+# others
+
+type TAssign{Lhs<:Union(TVar,TRefScalar,TRef), Rhs<:TExpr} <: TExpr
 	lhs::Lhs
 	rhs::Rhs
 	mode::TMode
@@ -115,12 +150,15 @@ end
 #
 # 	Determining the expression mode
 #
+#	i.e. what kind of things that the whole expression wants to do
+#	(ewise, reduc, etc)
+#
 ##########################################################################
 
 tmode_num{D}(::EWiseMode{D}) = D
 
 tmode(ex::TScalar) = ScalarMode()
-tmode(ex::TSym) = EWiseMode{0}()
+tmode(ex::TVar) = EWiseMode{0}()
 
 tmode(ex::TRef1D) = EWiseMode{1}() 
 tmode(ex::TRef2D) = EWiseMode{2}()
@@ -155,7 +193,7 @@ promote_ewise_tmode(m1::TMode, m2::TMode, m3::TMode) = promote_ewise_tmode(promo
 
 ##########################################################################
 #
-# 	construction functions
+# 	functions to construct simple components of a typed expression
 #
 ##########################################################################
 
@@ -163,18 +201,96 @@ type DeError <: Exception
 	msg::ASCIIString
 end
 
+# number literals
+
 tnum(x::Number) = TNum{typeof(x)}(x)
-tsym(s::Symbol) = TSym(s)
-tscalarsym(s::Symbol) = TScalarSym(s)
 
-trefscalar(x::Symbol, i::TIndex) = TRefScalar1(x, i)
-trefscalar(x::Symbol, i::TIndex, j::TIndex) = TRefScalar2(x, i, j)
+# variable  (can be "a" or "a.b.c")
 
-tref1d(x::Symbol) = TRef1D(x)
-tref2d(x::Symbol) = TRef2D(x)
-trefcol(x::Symbol, i::TIndex) = TRefCol(x, i)
-trefrow(x::Symbol, i::TIndex) = TRefRow(x, i)
+tvar(s::Symbol) = TVar(s)
 
+is_valid_var(v::Symbol) = true
+is_valid_var(v::Expr) = v.head == :(.) && 
+	is_valid_var(v.args[1]) && 
+	isa(v.args[2], Expr) && 
+	v.args[2].head == :quote &&
+	isa(v.args[2].args[1], Symbol)
+
+function tvar(ex::Expr) 
+	if !is_valid_var(ex)
+		throw(DeError("Unrecognized variable form: $ex"))
+	end
+	TVar(ex)
+end
+
+tscalarvar(s::Symbol) = TScalarVar(s)
+
+# reference expressions
+
+function check_simple_ref(c::Bool)
+	if !c
+		throw(DeError("non-simple ref-expression is not supported"))
+	end
+end
+
+tref_arg(i::Int) = i
+tref_arg(i::Symbol) = i == :(:) ? TColon() : i
+
+function tref_arg(ex::Expr)
+	check_simple_ref(ex.head == :(:) && length(ex.args) == 2)
+	a1 = ex.args[1]
+	a2 = ex.args[2]
+	
+	if isa(a1, Int) || (isa(a1, Symbol) && a1 != :(:))
+		first = a1
+	else
+		check_simple_ref(false)
+	end
+
+	if isa(a2, Int)
+		last = a2
+	elseif isa(a2, Symbol)
+		last = a2 == :(:) ? nothing : a2
+	else
+		check_simple_ref(false)
+	end
+
+	TRange(first, last)
+end
+
+tref(x::TVar, i::TIndex) = TRefScalar1(x, i)
+tref(x::TVar, r::TRange) = TRef1D(x, r)
+
+tref(x::TVar, i::TIndex, j::TIndex) = TRefScalar2(x, i, j)
+tref(x::TVar, i::TIndex, c::TRange) = TRefRow(x, i, c)
+tref(x::TVar, r::TRange, j::TIndex) = TRefCol(x, r, j)
+tref(x::TVar, r::TRange, c::TRange) = TRef2D(x, r, c)
+
+function tref(ex::Expr)
+	@assert ex.head == :(ref)
+
+	na = length(ex.args)
+	check_simple_ref(na == 2 || na == 3)
+
+	h = tvar(ex.args[1])
+
+	if na == 2
+		a1 = ex.args[2]
+		tref(h, tref_arg(a1))
+
+	else 
+		a1 = ex.args[2]
+		a2 = ex.args[3]
+		tref(h, tref_arg(a1), tref_arg(a2))
+	end
+end
+
+
+##########################################################################
+#
+# 	function call recognition
+#
+##########################################################################
 
 is_ewise_call(f::Symbol, N::Int) = isa(get_op_kind(TCallSig{f, N}()), EWiseOp)
 is_reduc_call(f::Symbol, N::Int) = isa(get_op_kind(TCallSig{f, N}()), ReducOp)
@@ -191,11 +307,11 @@ function check_funcall_args(args::TExpr...)
 			pargs[i] = a
 		elseif isa(a, TReduc) || isa(a, TColwiseReduc) || isa(a, TRowwiseReduc)
 			dep_sym = gensym("dep")
-			pargs[i] = isa(a, TReduc) ? TScalarSym(dep_sym) : TSym(dep_sym)
+			pargs[i] = isa(a, TReduc) ? TScalarSym(dep_sym) : TVar(dep_sym)
 			if deps == nothing
 				deps = TExpr[]
 			end
-			push!(deps, tassign(TSym(dep_sym), a))
+			push!(deps, tassign(TVar(dep_sym), a))
 		else
 			throw(DeError("Arguments in unsupported form."))
 		end
@@ -265,6 +381,29 @@ function tcall(f::Symbol, args)
 	end
 end
 
+function tcall(ex::Expr)
+	@assert ex.head == :(call)
+	fsym = ex.args[1]
+	if !isa(fsym, Symbol)
+		throw(DeError("call-expressions with non-symbol function name: $fsym"))
+	end
+	tcall(fsym, map(texpr, ex.args[2:]))
+end
+
+function tcomparison(ex::Expr)
+	@assert ex.head == :(comparison)
+	opsym = ex.args[2]
+	tcall(opsym, map(texpr, [ex.args[1], ex.args[3]]))
+end
+
+
+
+
+##########################################################################
+#
+# 	assignment construction
+#
+##########################################################################
 
 function decide_assign_tmode(lhs::TExpr, rhs::TExpr)
 
@@ -272,7 +411,7 @@ function decide_assign_tmode(lhs::TExpr, rhs::TExpr)
 	# be placed on the left hand side
 	@assert !isa(lhs, TScalarSym)
 
-	if isa(lhs, TSym)
+	if isa(lhs, TVar)
 		mode = tmode(rhs)
 
 	elseif isa(lhs, TRefScalar)
@@ -311,16 +450,51 @@ function tassign(lhs::TExpr, rhs::TExpr)
 end
 
 
-function topassign(assign_op::Symbol, lhs::TExpr, rhs::TExpr)
-	op = assign_op == :(+=)  ? :(+) :
-		 assign_op == :(-=)  ? :(-) :
-		 assign_op == :(.*=) ? :(.*) :
-		 assign_op == :(./=) ? :(./) :
-		 throw(DeError("Unrecognized assignment-op $op"))
-
+function topassign(aop::Symbol, lhs::TExpr, rhs::TExpr)
+	op = extract_assign_op(aop)
 	new_rhs = tcall(op, [lhs, rhs])
 	tassign(lhs, new_rhs)
 end
+
+
+function tassign(ex::Expr)
+	@assert ex.head == :(=)
+	@assert length(ex.args) == 2
+
+	lhs = ex.args[1]
+	rhs = ex.args[2]
+	tassign(texpr(lhs), texpr(rhs))
+end
+
+function topassign(ex::Expr)
+	topassign(ex.head, texpr(lhs), texpr(rhs))
+end
+
+
+##########################################################################
+#
+# 	block construction
+#
+##########################################################################
+
+
+function tblock(blk_ex::Expr)
+
+	@assert blk_ex.head == :(block)
+
+	blk = TBlock()
+	for e in ex.args
+		if isa(e, LineNumberNode) || e.head == (:line)
+			continue
+		end
+		if !(e.head == :(=) || ex.head == :(block))
+			throw(DeError("Each statement in a block must be an assignment or a nested block"))
+		end
+		push!(blk.stmts, texpr(e))
+	end
+	blk
+end
+
 
 
 ##########################################################################
@@ -330,97 +504,19 @@ end
 ##########################################################################
 
 texpr(x::Number) = tnum(x)
-texpr(x::Symbol) = tsym(x)
+texpr(x::Symbol) = tvar(x)
 
-function check_simple_ref(c::Bool)
-	if !c
-		throw(DeError("non-simple ref-expression is not supported"))
-	end
-end
+is_empty_tuple(ex::Expr) = ex.head == :(tuple) && isempty(ex.args)
 
-function texpr_for_ref(ex::Expr)
-	@assert ex.head == :(ref)
-
-	na = length(ex.args)
-	check_simple_ref(na == 2 || na == 3)
-
-	hsym = ex.args[1]
-	check_simple_ref(isa(hsym, Symbol))
-
-	if na == 2
-		a1 = ex.args[2]
-		check_simple_ref(isa(a1, TIndex))
-
-		a1 == :(:) ? tref1d(hsym) : trefscalar(hsym, a1)
-
-	else 
-		a1 = ex.args[2]
-		a2 = ex.args[3]
-		check_simple_ref(isa(a1, TIndex))
-		check_simple_ref(isa(a2, TIndex))
-
-		if a1 == :(:)
-			a2 == :(:) ? tref2d(hsym) : trefcol(hsym, a2)
-		else
-			a2 == :(:) ? trefrow(hsym, a1) : trefscalar(hsym, a1, a2)
-		end
-	end
-end
+texpr(ex::Expr) = 
+	ex.head == :(call) ? tcall(ex) :
+	ex.head == :(comparison) ? tcomparison(ex) :
+	ex.head == :(ref) ? tref(ex) :
+	ex.head == :(=) ? tassign(ex) :
+	ex.head == :(block) ? tblock(ex) :
+	is_empty_tuple(ex) ? TEmpty() :
+	is_opassign(ex.head) ? topassign(ex) :
+	throw(DeError("Unrecognized expression: $ex"))
 
 
-function texpr(ex::Expr) 
-
-	if ex.head == :(call) 
-
-		fsym = ex.args[1]
-		if !isa(fsym, Symbol)
-			throw(DeError("call-expressions with non-symbol function name: $fsym"))
-		end
-		tcall(fsym, map(texpr, ex.args[2:]))
-
-	elseif ex.head == :(comparison)
-
-		opsym = ex.args[2]
-		tcall(opsym, map(texpr, [ex.args[1], ex.args[3]]))
-		
-	elseif ex.head == :(ref)
-
-		texpr_for_ref(ex)
-
-	elseif ex.head == :(tuple) && isempty(ex.args)
-
-		TEmpty()
-
-	elseif ex.head == :(=)
-
-		@assert length(ex.args) == 2
-		lhs = texpr(ex.args[1])
-		rhs = texpr(ex.args[2])
-		tassign(lhs, rhs)
-
-	elseif ex.head == :(+=) || ex.head == :(-=) || ex.head == :(.*=) || ex.head == :(./=)
-
-		@assert length(ex.args) == 2
-		lhs = texpr(ex.args[1])
-		rhs = texpr(ex.args[2])
-		topassign(ex.head, lhs, rhs)
-
-	elseif ex.head == :(block)
-
-		blk = TBlock()
-		for e in ex.args
-			if isa(e, LineNumberNode) || e.head == (:line)
-				continue
-			end
-			if !(e.head == :(=) || ex.head == :(block))
-				throw(DeError("Each statement in a block must be an assignment or a nested block"))
-			end
-			push!(blk.stmts, texpr(e))
-		end
-		blk
-		
-	else
-		throw(DeError("Unrecognized expression: $ex"))
-	end
-end
 
