@@ -130,7 +130,7 @@ rcp(x::FloatingPoint) = one(x) / x
 rcp{T<:FloatingPoint}(a::AbstractArray{T}) =  one(eltype(a)) ./ a
 
 for s in [
-	:sqrt, :cbrt, :sqr, :rcp,  
+	:sqrt, :cbrt, :abs, :sqr, :rcp,  
 	:floor, :ceil, :round, :trunc,
 	:exp, :log, :log10, :exp2, :log2, :expm1, :log1p, 
 	:sin, :cos, :tan, :asin, :acos, :atan, 
