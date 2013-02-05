@@ -14,33 +14,36 @@ using DeExpr
 ex = tnum(1.5)
 @test isa(ex, TNum{Float64})
 @test ex.val == 1.5
+@test ex == tnum(1.5)
 
-# tvar
+# tvar & tscalarvar
 
 ex = tvar(:a)
 @test isa(ex, TVar)
-@test isa(ex.form, Symbol)
-@test ex.form == :(a)
-
-ex = tvar(:(a.b))
-@test isa(ex, TVar)
-@test isa(ex.form, Expr)
-@test ex.form == :(a.b)
-
-ex = tvar(:(a.b.c))
-@test isa(ex, TVar)
-@test isa(ex.form, Expr)
-@test ex.form == :(a.b.c)
-
-# tscalarvar
+@test ex.name == :a
+@test ex == tvar(:a)
 
 ex = tscalarvar(:a)
 @test isa(ex, TScalarVar)
-@test ex.name == (:a)
+@test ex.name == :a
+@test ex == tscalarvar(:a)
+
+# tqvar
+
+ex = tqvar(:(a.b))
+@test isa(ex, TQVar)
+@test ex.form == :(a.b)
+@test ex == tqvar(:(a.b))
+
+ex = tqvar(:(a.b.c))
+@test isa(ex, TQVar)
+@test ex.form == :(a.b.c)
+@test ex == tqvar(:(a.b.c))
+
 
 ###########################################################
 #
-#	reference expression construction
+#	scalar reference expression construction
 #
 ###########################################################
 
@@ -48,263 +51,653 @@ ex = tref(:(a[1]))
 @test isa(ex, TRefScalar1)
 @test ex.host == tvar(:a)
 @test ex.i == 1
+@test ex == tref(:(a[1]))
+
+ex = tref(:(a[x]))
+@test isa(ex, TRefScalar1)
+@test ex.host == tvar(:a)
+@test ex.i == :x
+@test ex == tref(:(a[x]))
 
 ex = tref(:(a[1,2]))
 @test isa(ex, TRefScalar2)
-@test isa(ex.host, TVar)
-@test ex.host.form == :a
+@test ex.host == tvar(:a)
 @test ex.i == 1
 @test ex.j == 2
+@test ex == tref(:(a[1,2]))
+
+ex = tref(:(a[x,2]))
+@test isa(ex, TRefScalar2)
+@test ex.host == tvar(:a)
+@test ex.i == :x
+@test ex.j == 2
+@test ex == tref(:(a[x,2]))
+
+ex = tref(:(a[1,y]))
+@test isa(ex, TRefScalar2)
+@test ex.host == tvar(:a)
+@test ex.i == 1
+@test ex.j == :y
+@test ex == tref(:(a[1,y]))
+
+ex = tref(:(a[x,y]))
+@test isa(ex, TRefScalar2)
+@test ex.host == tvar(:a)
+@test ex.i == :x
+@test ex.j == :y
+@test ex == tref(:(a[x,y]))
+
+ex = tref(:(a.b[2]))
+@test isa(ex, TRefScalar1)
+@test ex.host == tqvar(:(a.b))
+@test ex.i == 2
+@test ex == tref(:(a.b[2]))
+
+ex = tref(:(a.b[2,3]))
+@test isa(ex, TRefScalar2)
+@test ex.host == tqvar(:(a.b))
+@test ex.i == 2
+@test ex.j == 3
+@test ex == tref(:(a.b[2,3]))
+
+
+###########################################################
+#
+#	1D array reference expression construction
+#
+###########################################################
 
 ex = tref(:(a[:]))
 @test isa(ex, TRef1D)
-@test isa(ex.host, TVar)
-@test ex.host.form == :a
+@test ex.host == tvar(:a)
 @test ex.rgn == TColon()
+@test ex == tref(:(a[:]))
 
-ex = tref(:(a[:,:]))
-@test isa(ex, TRef2D)
-@test isa(ex.host, TVar)
-@test ex.host.form == :a
-@test ex.rrgn == :(:)
-@test ex.crgn == :(:)
+ex = tref(:(a[2:]))
+@test isa(ex, TRef1D)
+@test ex.host == tvar(:a)
+@test ex.rgn == TInterval(2, nothing)
+@test ex == tref(:(a[2:]))
 
-ex = tref(:(a[:,j]))
+ex = tref(:(a[i0:]))
+@test isa(ex, TRef1D)
+@test ex.host == tvar(:a)
+@test ex.rgn == TInterval(:i0, nothing)
+@test ex == tref(:(a[i0:]))
+
+ex = tref(:(a[3:7]))
+@test isa(ex, TRef1D)
+@test ex.host == tvar(:a)
+@test ex.rgn == TInterval(3, 7)
+@test ex == tref(:(a[3:7]))
+
+ex = tref(:(a[i0:7]))
+@test isa(ex, TRef1D)
+@test ex.host == tvar(:a)
+@test ex.rgn == TInterval(:i0, 7)
+@test ex == tref(:(a[i0:7]))
+
+ex = tref(:(a[3:i1]))
+@test isa(ex, TRef1D)
+@test ex.host == tvar(:a)
+@test ex.rgn == TInterval(3, :i1)
+@test ex == tref(:(a[3:i1]))
+
+ex = tref(:(a[i0:i1]))
+@test isa(ex, TRef1D)
+@test ex.host == tvar(:a)
+@test ex.rgn == TInterval(:i0, :i1)
+@test ex == tref(:(a[i0:i1]))
+
+ex = tref(:(a.b[:]))
+@test isa(ex, TRef1D)
+@test ex.host == tqvar(:(a.b))
+@test ex.rgn == TColon()
+@test ex == tref(:(a.b[:]))
+
+
+###########################################################
+#
+#	column reference expression construction
+#
+###########################################################
+
+ex = tref(:(a[:, 5]))
 @test isa(ex, TRefCol)
-@test isa(ex.host, TVar)
-@test ex.host.form == :a
+@test ex.host == tvar(:a)
 @test ex.rrgn == TColon()
-@test ex.icol == (:j)
+@test ex.icol == 5
+@test ex == tref(:(a[:, 5]))
 
-ex = tref(:(a[i,:]))
+ex = tref(:(a[2:, 5]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(2, nothing)
+@test ex.icol == 5
+@test ex == tref(:(a[2:, 5]))
+
+ex = tref(:(a[i0:, 5]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.icol == 5
+@test ex == tref(:(a[i0:, 5]))
+
+ex = tref(:(a[3:7, 5]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(3, 7)
+@test ex.icol == 5
+@test ex == tref(:(a[3:7, 5]))
+
+ex = tref(:(a[i0:7, 5]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, 7)
+@test ex.icol == 5
+@test ex == tref(:(a[i0:7, 5]))
+
+ex = tref(:(a[3:i1, 5]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(3, :i1)
+@test ex.icol == 5
+@test ex == tref(:(a[3:i1, 5]))
+
+ex = tref(:(a[i0:i1, 5]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.icol == 5
+@test ex == tref(:(a[i0:i1, 5]))
+
+
+ex = tref(:(a[:, j]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TColon()
+@test ex.icol == :j
+@test ex == tref(:(a[:, j]))
+
+ex = tref(:(a[2:, j]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(2, nothing)
+@test ex.icol == :j
+@test ex == tref(:(a[2:, j]))
+
+ex = tref(:(a[i0:, j]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.icol == :j
+@test ex == tref(:(a[i0:, j]))
+
+ex = tref(:(a[3:7, j]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(3, 7)
+@test ex.icol == :j
+@test ex == tref(:(a[3:7, j]))
+
+ex = tref(:(a[i0:7, j]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, 7)
+@test ex.icol == :j
+@test ex == tref(:(a[i0:7, j]))
+
+ex = tref(:(a[3:i1, j]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(3, :i1)
+@test ex.icol == :j
+@test ex == tref(:(a[3:i1, j]))
+
+ex = tref(:(a[i0:i1, j]))
+@test isa(ex, TRefCol)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.icol == :j
+@test ex == tref(:(a[i0:i1, j]))
+
+ex = tref(:(a.b[:,j]))
+@test isa(ex, TRefCol)
+@test ex.host == tqvar(:(a.b))
+@test ex.rrgn == TColon()
+@test ex.icol == :j
+@test ex == tref(:(a.b[:,j]))
+
+
+###########################################################
+#
+#	row reference expression construction
+#
+###########################################################
+
+ex = tref(:(a[6, :]))
 @test isa(ex, TRefRow)
-@test isa(ex.host, TVar)
-@test ex.host.form == :a
-@test ex.irow == (:i)
+@test ex.host == tvar(:a)
+@test ex.irow == 6
 @test ex.crgn == TColon()
+@test ex == tref(:(a[6, :]))
+
+ex = tref(:(a[6, 2:]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == 6
+@test ex.crgn == TInterval(2, nothing)
+@test ex == tref(:(a[6, 2:]))
+
+ex = tref(:(a[6, i0:]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == 6
+@test ex.crgn == TInterval(:i0, nothing)
+@test ex == tref(:(a[6, i0:]))
+
+ex = tref(:(a[6, 3:7]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == 6
+@test ex.crgn == TInterval(3, 7)
+@test ex == tref(:(a[6, 3:7]))
+
+ex = tref(:(a[6, i0:7]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == 6
+@test ex.crgn == TInterval(:i0, 7)
+@test ex == tref(:(a[6, i0:7]))
+
+ex = tref(:(a[6, 3:i1]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == 6
+@test ex.crgn == TInterval(3, :i1)
+@test ex == tref(:(a[6, 3:i1]))
+
+ex = tref(:(a[6, i0:i1]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == 6
+@test ex.crgn == TInterval(:i0, :i1)
+@test ex == tref(:(a[6, i0:i1]))
+
+ex = tref(:(a[i, :]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == :i
+@test ex.crgn == TColon()
+@test ex == tref(:(a[i, :]))
+
+ex = tref(:(a[i, 2:]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == :i
+@test ex.crgn == TInterval(2, nothing)
+@test ex == tref(:(a[i, 2:]))
+
+ex = tref(:(a[i, i0:]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == :i
+@test ex.crgn == TInterval(:i0, nothing)
+@test ex == tref(:(a[i, i0:]))
+
+ex = tref(:(a[i, 3:7]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == :i
+@test ex.crgn == TInterval(3, 7)
+@test ex == tref(:(a[i, 3:7]))
+
+ex = tref(:(a[i, i0:7]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == :i
+@test ex.crgn == TInterval(:i0, 7)
+@test ex == tref(:(a[i, i0:7]))
+
+ex = tref(:(a[i, 3:i1]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == :i
+@test ex.crgn == TInterval(3, :i1)
+@test ex == tref(:(a[i, 3:i1]))
+
+ex = tref(:(a[i, i0:i1]))
+@test isa(ex, TRefRow)
+@test ex.host == tvar(:a)
+@test ex.irow == :i
+@test ex.crgn == TInterval(:i0, :i1)
+@test ex == tref(:(a[i, i0:i1]))
+
+ex = tref(:(a.b[i, :]))
+@test isa(ex, TRefRow)
+@test ex.host == tqvar(:(a.b))
+@test ex.irow == :i
+@test ex.crgn == TColon()
+@test ex == tref(:(a.b[i, :]))
 
 
 ###########################################################
 #
-#	expression types and modes
+#	2D reference expression construction
 #
 ###########################################################
 
-macro test_te(expr, expect_ty, expect_mode)
-	te = texpr(expr)
-	if !isa(te, eval(expect_ty))
-		error("texpr failed on: texpr_type of ($expr) == $(eval(expect_ty)) | got $(typeof(te))")
-	end
-	if !(tmode(te) == eval(expect_mode))
-		error("texpr failed on: tmode of ($expr) == $(eval(expect_mode)) | got $(tmode(te))")
-	end
-end
+ex = tref(:(a[:, :]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TColon()
+@test ex.crgn == TColon()
+@test ex == tref(:(a[:, :]))
 
-macro expect_error(expr, errty)
-	last_err = nothing
-	try
-		texpr(expr)
-	catch err
-		last_err = err
-	end
-	if last_err == nothing
-		error("expect exception from $expr, but it raises nothing (unexpectedly)")
-	elseif !isa(last_err, eval(errty))
-		error("The expression $expr raises unexpected exception of $(typeof(last_err))")
-	end
-end
+ex = tref(:(a[:, 2:]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TColon()
+@test ex.crgn == TInterval(2, nothing)
+@test ex == tref(:(a[:, 2:]))
 
-# terminal
+ex = tref(:(a[:, j0:]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TColon()
+@test ex.crgn == TInterval(:j0, nothing)
+@test ex == tref(:(a[:, j0:]))
 
-@test_te 1 		TNum{Int} 		ScalarMode()
-@test_te 2.5 	TNum{Float64}	ScalarMode()
-@test_te a 		TSym 			EWiseMode{0}()
+ex = tref(:(a[:, 3:7]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TColon()
+@test ex.crgn == TInterval(3, 7)
+@test ex == tref(:(a[:, 3:7]))
 
-# reference
+ex = tref(:(a[:, j0:7]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TColon()
+@test ex.crgn == TInterval(:j0, 7)
+@test ex == tref(:(a[:, j0:7]))
 
-@test_te a[1]	TRefScalar1		ScalarMode()
-@test_te a[i] 	TRefScalar1 	ScalarMode()
-@test_te a[:] 	TRef1D 			EWiseMode{1}()
-@test_te a[:,1]	TRefCol 		EWiseMode{1}()
-@test_te a[:,j]	TRefCol			EWiseMode{1}()
-@test_te a[1,:] TRefRow 		EWiseMode{1}()
-@test_te a[i,:] TRefRow 		EWiseMode{1}()
-@test_te a[:,:] TRef2D 			EWiseMode{2}()
+ex = tref(:(a[:, 3:j1]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TColon()
+@test ex.crgn == TInterval(3, :j1)
+@test ex == tref(:(a[:, 3:j1]))
 
-# unary expressions
-
-@test_te -a 			TMap 	EWiseMode{0}()
-@test_te sin(1.2) 		TMap 	ScalarMode()
-@test_te sin(a) 		TMap 	EWiseMode{0}()
-@test_te sin(a[0]) 		TMap 	ScalarMode()
-@test_te sin(a[:])	 	TMap 	EWiseMode{1}()
-@test_te sin(a[:,:]) 	TMap 	EWiseMode{2}()
-
-# binary expressions
-
-@test_te a + 1 			TMap	EWiseMode{0}()
-@test_te a + b			TMap 	EWiseMode{0}()
-@test_te a + b[1] 		TMap	EWiseMode{0}()
-@test_te a + b[:] 		TMap	EWiseMode{1}()
-@test_te a + b[:,:]		TMap 	EWiseMode{2}()
-
-@test_te 1 + 2 			TMap	ScalarMode()
-@test_te 1 + b			TMap 	EWiseMode{0}()
-@test_te 1 + b[1] 		TMap	ScalarMode()
-@test_te 1 + b[:] 		TMap	EWiseMode{1}()
-@test_te 1 + b[:,:]		TMap 	EWiseMode{2}()
-
-@test_te a[1] + 2 			TMap	ScalarMode()
-@test_te a[1] + b			TMap 	EWiseMode{0}()
-@test_te a[1] + b[1] 		TMap	ScalarMode()
-@test_te a[1] + b[:] 		TMap	EWiseMode{1}()
-@test_te a[1] + b[:,:]		TMap 	EWiseMode{2}()
-
-@test_te a[:] + 1 			TMap	EWiseMode{1}()
-@test_te a[:] + b			TMap 	EWiseMode{1}()
-@test_te a[:] + b[1] 		TMap	EWiseMode{1}()
-@test_te a[:] + b[:] 		TMap	EWiseMode{1}()
-@expect_error a[:] + b[:,:]   DeError
-
-@test_te a[:,:] + 1 		TMap	EWiseMode{2}()
-@test_te a[:,:] + b			TMap 	EWiseMode{2}()
-@test_te a[:,:] + b[1] 		TMap	EWiseMode{2}()
-@test_te a[:,:] + b[:,:] 	TMap 	EWiseMode{2}()
-@expect_error a[:,:] + b[:]   DeError
-
-# ternary expressions
-
-@test_te clamp(a, b, c) 		TMap 	EWiseMode{0}()
-@test_te clamp(1, b, c) 		TMap 	EWiseMode{0}()
-@test_te clamp(a, 2, c) 		TMap 	EWiseMode{0}()
-@test_te clamp(a, b, 3) 		TMap 	EWiseMode{0}()
-@test_te clamp(1, 2, c) 		TMap 	EWiseMode{0}()
-@test_te clamp(1, b, 3) 		TMap 	EWiseMode{0}()
-@test_te clamp(a, 2, 3) 		TMap 	EWiseMode{0}()
-@test_te clamp(1, 2, 3) 		TMap 	ScalarMode()
-
-@test_te clamp(a[:], b, c) 		TMap 	EWiseMode{1}()
-@test_te clamp(a, b[:], c) 		TMap 	EWiseMode{1}()
-@test_te clamp(a, b, c[:]) 		TMap 	EWiseMode{1}()
-@test_te clamp(a[:], b[:], c) 	TMap 	EWiseMode{1}()
-@test_te clamp(a[:], b, c[:]) 	TMap 	EWiseMode{1}()
-@test_te clamp(a, b[:], c[:]) 	TMap 	EWiseMode{1}()
-@test_te clamp(a[:], b[:], c[:]) 	TMap 	EWiseMode{1}()
-
-@test_te clamp(a[:], 1, 2) 		TMap 	EWiseMode{1}()
-@test_te clamp(1, b[:], 2) 		TMap 	EWiseMode{1}()
-@test_te clamp(1, 2, c[:]) 		TMap 	EWiseMode{1}()
-@test_te clamp(a[:], b[:], 1) 	TMap 	EWiseMode{1}()
-@test_te clamp(a[:], 1, c[:]) 	TMap 	EWiseMode{1}()
-@test_te clamp(1, b[:], c[:]) 	TMap 	EWiseMode{1}()
-
-# comparison & logical expressions
-
-@test_te a .== b 		TMap	EWiseMode{0}()
-@test_te 1 .== a 		TMap 	EWiseMode{0}()
-@test_te a .== 1 		TMap 	EWiseMode{0}()
-@test_te 1 .== 2 		TMap 	ScalarMode()
-
-@test_te a .!= b 		TMap 	EWiseMode{0}()
-@test_te a .< b 		TMap 	EWiseMode{0}()
-@test_te a .> b 		TMap 	EWiseMode{0}()
-@test_te a .<= b 		TMap 	EWiseMode{0}()
-@test_te a .>= b 		TMap 	EWiseMode{0}()
-
-@test_te a & b 			TMap	EWiseMode{0}()
-@test_te a & true 		TMap	EWiseMode{0}()
-@test_te true & a 		TMap	EWiseMode{0}()
-@test_te true & false	TMap 	ScalarMode()
-
-@test_te a | b 			TMap	EWiseMode{0}()
-@test_te a | true 		TMap	EWiseMode{0}()
-@test_te true | a 		TMap	EWiseMode{0}()
-@test_te true | false	TMap 	ScalarMode()
+ex = tref(:(a[:, j0:j1]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TColon()
+@test ex.crgn == TInterval(:j0, :j1)
+@test ex == tref(:(a[:, j0:j1]))
 
 
-# compound ewise expressions
+ex = tref(:(a[i0:, :]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.crgn == TColon()
+@test ex == tref(:(a[i0:, :]))
 
-@test_te a + b .* c 	TMap 	EWiseMode{0}()
-@test_te 1 + 2 .* 3 	TMap 	ScalarMode()
-@test_te a + 2 .* 3 	TMap	EWiseMode{0}()
-@test_te 1 + 2 .* b 	TMap 	EWiseMode{0}()
+ex = tref(:(a[i0:, 2:]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.crgn == TInterval(2, nothing)
+@test ex == tref(:(a[i0:, 2:]))
 
-@test_te a[:] + b .* 2 		TMap	EWiseMode{1}()
-@test_te a + b[:] .* c 		TMap	EWiseMode{1}()
-@test_te a + 3 .* c[:,:]	TMap	EWiseMode{2}()
-@test_te a[0] + 2 .* c[0]	TMap 	ScalarMode()
+ex = tref(:(a[i0:, j0:]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.crgn == TInterval(:j0, nothing)
+@test ex == tref(:(a[i0:, j0:]))
 
-@test_te blend(a .> 1, c, d)	TMap 	EWiseMode{0}()
+ex = tref(:(a[i0:, 3:7]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.crgn == TInterval(3, 7)
+@test ex == tref(:(a[i0:, 3:7]))
 
+ex = tref(:(a[i0:, j0:7]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.crgn == TInterval(:j0, 7)
+@test ex == tref(:(a[i0:, j0:7]))
 
-# reduction expressions
+ex = tref(:(a[i0:, 3:j1]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.crgn == TInterval(3, :j1)
+@test ex == tref(:(a[i0:, 3:j1]))
 
-@test_te sum(a) 	TReduc 	ReducMode()
-@test_te mean(a) 	TReduc 	ReducMode()
-@test_te min(a) 	TReduc 	ReducMode()
-@test_te max(a)		TReduc  ReducMode()
-@test_te dot(a, b) 	TReduc  ReducMode()
-
-@test_te sum(1) 	TReduc  ScalarMode()
-@test_te mean(1) 	TReduc 	ScalarMode()
-@test_te min(1) 	TReduc 	ScalarMode()
-@test_te max(1)		TReduc  ScalarMode()
-@test_te dot(1, 2) 	TReduc  ScalarMode()
-
-@test_te sum(a[:]) 		TReduc 	ReducMode()
-@test_te mean(a[:]) 	TReduc 	ReducMode()
-@test_te min(a[:]) 		TReduc 	ReducMode()
-@test_te max(a[:])		TReduc  ReducMode()
-@test_te dot(a, b[:]) 	TReduc  ReducMode()
-
-@test_te sum(a[:,:]) 		TReduc 	ReducMode()
-@test_te mean(a[:,:]) 		TReduc 	ReducMode()
-@test_te min(a[:,:]) 		TReduc 	ReducMode()
-@test_te max(a[:,:])		TReduc  ReducMode()
-@test_te dot(a, b[:,:]) 	TReduc  ReducMode()
-
-@test_te sum(a + b) 	TReduc 	ReducMode()
-@test_te mean(a + b) 	TReduc 	ReducMode()
-@test_te min(a + b) 	TReduc 	ReducMode()
-@test_te max(a + b)		TReduc  ReducMode()
-@test_te dot(a + b, c .* d) 	TReduc  ReducMode()
+ex = tref(:(a[i0:, j0:j1]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, nothing)
+@test ex.crgn == TInterval(:j0, :j1)
+@test ex == tref(:(a[i0:, j0:j1]))
 
 
-# assignment expressions
+ex = tref(:(a[i0:i1, :]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.crgn == TColon()
+@test ex == tref(:(a[i0:i1, :]))
 
-@test_te a = 1 			TAssign{TSym, TNum{Int}} 	ScalarMode()
-@test_te a = x			TAssign{TSym, TSym} 		EWiseMode{0}()
-@test_te a = sin(x)		TAssign{TSym, TMap}			EWiseMode{0}()
-@test_te a = x + y 		TAssign{TSym, TMap} 		EWiseMode{0}()
-@test_te a = x + y[:]	TAssign{TSym, TMap} 		EWiseMode{1}()
-@test_te a = x[:,:]		TAssign{TSym, TRef2D} 		EWiseMode{2}()
+ex = tref(:(a[i0:i1, 2:]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.crgn == TInterval(2, nothing)
+@test ex == tref(:(a[i0:i1, 2:]))
 
-@test_te a[:] = 1 			TAssign{TRef1D, TNum{Int}}	EWiseMode{1}()
-@test_te a[:] = x			TAssign{TRef1D, TSym} 		EWiseMode{1}()
-@test_te a[:] = sin(x)		TAssign{TRef1D, TMap}		EWiseMode{1}()
-@test_te a[:] = x + y 		TAssign{TRef1D, TMap} 		EWiseMode{1}()
-@test_te a[:] = x + y[:]	TAssign{TRef1D, TMap} 		EWiseMode{1}()
-@expect_error a[:] = x[:,:]		DeError
+ex = tref(:(a[i0:i1, j0:]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.crgn == TInterval(:j0, nothing)
+@test ex == tref(:(a[i0:i1, j0:]))
 
-@test_te a[:,i] = 1 			TAssign{TRefCol, TNum{Int}}	EWiseMode{1}()
-@test_te a[:,i] = x				TAssign{TRefCol, TSym} 		EWiseMode{1}()
-@test_te a[:,i] = sin(x)		TAssign{TRefCol, TMap}		EWiseMode{1}()
-@test_te a[:,i] = x + y 		TAssign{TRefCol, TMap} 		EWiseMode{1}()
-@test_te a[:,i] = x + y[:]		TAssign{TRefCol, TMap} 		EWiseMode{1}()
-@expect_error a[:,i] = x[:,:]	DeError
+ex = tref(:(a[i0:i1, 3:7]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.crgn == TInterval(3, 7)
+@test ex == tref(:(a[i0:i1, 3:7]))
 
-@test_te a[i,:] = 1 			TAssign{TRefRow, TNum{Int}}	EWiseMode{1}()
-@test_te a[i,:] = x				TAssign{TRefRow, TSym} 		EWiseMode{1}()
-@test_te a[i,:] = sin(x)		TAssign{TRefRow, TMap}		EWiseMode{1}()
-@test_te a[i,:] = x + y 		TAssign{TRefRow, TMap} 		EWiseMode{1}()
-@test_te a[i,:] = x + y[:]		TAssign{TRefRow, TMap} 		EWiseMode{1}()
-@expect_error a[i,:] = x[:,:]	DeError
+ex = tref(:(a[i0:i1, j0:7]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.crgn == TInterval(:j0, 7)
+@test ex == tref(:(a[i0:i1, j0:7]))
 
-@test_te a[:,:] = 1 			TAssign{TRef2D, TNum{Int}}	EWiseMode{2}()
-@test_te a[:,:] = x				TAssign{TRef2D, TSym} 		EWiseMode{2}()
-@test_te a[:,:] = sin(x)		TAssign{TRef2D, TMap}		EWiseMode{2}()
-@test_te a[:,:] = x + y 		TAssign{TRef2D, TMap} 		EWiseMode{2}()	
-@test_te a[:,:] = x[:,:] 		TAssign{TRef2D, TRef2D} 	EWiseMode{2}()
-@expect_error a[:,:] = x + y[:] DeError
+ex = tref(:(a[i0:i1, 3:j1]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.crgn == TInterval(3, :j1)
+@test ex == tref(:(a[i0:i1, 3:j1]))
 
+ex = tref(:(a[i0:i1, j0:j1]))
+@test isa(ex, TRef2D)
+@test ex.host == tvar(:a)
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.crgn == TInterval(:j0, :j1)
+@test ex == tref(:(a[i0:i1, j0:j1]))
+
+ex = tref(:(a.b[i0:i1, j0:j1]))
+@test isa(ex, TRef2D)
+@test ex.host == tqvar(:(a.b))
+@test ex.rrgn == TInterval(:i0, :i1)
+@test ex.crgn == TInterval(:j0, :j1)
+@test ex == tref(:(a.b[i0:i1,j0:j1]))
+
+
+###########################################################
+#
+#	Fun call expression construction
+#
+###########################################################
+
+# maps
+
+ex = tcall(:(sin(a)))
+@test isa(ex, TMap)
+@test ex.fun == :sin
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+@test ex == tcall(:(sin(a)))
+
+ex = tcall(:(a + b))
+@test isa(ex, TMap)
+@test ex.fun == :(+)
+@test length(ex.args) == 2
+@test ex.args[1] == tvar(:a)
+@test ex.args[2] == tvar(:b)
+@test ex == tcall(:(a + b))
+
+ex = tcall(:(clamp(a, b, c)))
+@test isa(ex, TMap)
+@test ex.fun == :clamp
+@test length(ex.args) == 3
+@test ex.args[1] == tvar(:a)
+@test ex.args[2] == tvar(:b)
+@test ex.args[3] == tvar(:c)
+@test ex == tcall(:(clamp(a, b, c)))
+
+ex = tcall(:(a + b .* c))
+@test isa(ex, TMap)
+@test ex.fun == :+
+@test length(ex.args) == 2
+@test ex.args[1] == tvar(:a)
+@test ex.args[2] == tcall(:(b .* c))
+
+ex = tcall(:(a.x + max(b[2], c[:,i])))
+@test isa(ex, TMap)
+@test ex.fun == :+
+@test length(ex.args) == 2
+@test ex.args[1] == tqvar(:(a.x))
+@test ex.args[2].fun == :max
+@test ex.args[2].args[1] == tref(:(b[2]))
+@test ex.args[2].args[2] == tref(:(c[:,i]))
+
+# reductions
+
+ex = tcall(:(sum(a)))
+@test isa(ex, TReduc)
+@test ex.fun == :sum
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(max(a)))
+@test isa(ex, TReduc)
+@test ex.fun == :max
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(min(a)))
+@test isa(ex, TReduc)
+@test ex.fun == :min
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(mean(a)))
+@test isa(ex, TReduc)
+@test ex.fun == :mean
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(dot(a, b)))
+@test isa(ex, TReduc)
+@test ex.fun == :dot
+@test length(ex.args) == 2
+@test ex.args[1] == tvar(:a)
+@test ex.args[2] == tvar(:b)
+
+ex = tcall(:(sum(a, 1)))
+@test isa(ex, TColwiseReduc)
+@test ex.fun == :sum
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(max(a, (), 1)))
+@test isa(ex, TColwiseReduc)
+@test ex.fun == :max
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(min(a, (), 1)))
+@test isa(ex, TColwiseReduc)
+@test ex.fun == :min
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(mean(a, 1)))
+@test isa(ex, TColwiseReduc)
+@test ex.fun == :mean
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(sum(a, 2)))
+@test isa(ex, TRowwiseReduc)
+@test ex.fun == :sum
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(max(a, (), 2)))
+@test isa(ex, TRowwiseReduc)
+@test ex.fun == :max
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(min(a, (), 2)))
+@test isa(ex, TRowwiseReduc)
+@test ex.fun == :min
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+ex = tcall(:(mean(a, 2)))
+@test isa(ex, TRowwiseReduc)
+@test ex.fun == :mean
+@test length(ex.args) == 1
+@test ex.args[1] == tvar(:a)
+
+
+ex = tcall(:(sum(a[1,2] + b .* c[:,:])))
+@test isa(ex, TReduc)
+@test ex.fun == :sum
+@test length(ex.args) == 1
+@test ex.args[1] == tcall(:(a[1,2] + b .* c[:,:]))
+
+ex = tcall(:(sum(a[1,2] + b .* c[:,:], 1)))
+@test isa(ex, TColwiseReduc)
+@test ex.fun == :sum
+@test length(ex.args) == 1
+@test ex.args[1] == tcall(:(a[1,2] + b .* c[:,:]))
+
+ex = tcall(:(sum(a[1,2] + b .* c[:,:], 2)))
+@test isa(ex, TRowwiseReduc)
+@test ex.fun == :sum
+@test length(ex.args) == 1
+@test ex.args[1] == tcall(:(a[1,2] + b .* c[:,:]))
+
+# assignment
+
+ex = tassign(:(a = b))
+@test isa(ex, TAssign)
+@test ex.lhs == tvar(:a)
+@test ex.rhs == tvar(:b)
+@test is_trivial_assignment(ex)
+@test ex == tassign(:(a = b))
 

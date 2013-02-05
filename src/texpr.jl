@@ -19,7 +19,11 @@ type RowwiseReducMode <: TMode end
 # types
 
 abstract TExpr
+
+# expressions that can be an argument for element-wise computation
 abstract TEWise <: TExpr
+
+# expressions that is sured to be a scalar
 abstract TScalar <: TEWise
 
 type TEmpty <: TExpr end
@@ -30,30 +34,39 @@ type TNum{T<:Number} <: TScalar
 	val::T
 end
 
-== (u::TNum, v::TNum) = (u.val == v.val)
-!= (u::TNum, v::TNum) = !(u == v)
+== (a::TNum, b::TNum) = (a.val == b.val)
+!= (a::TNum, b::TNum) = !(a == b)
 
 type TScalarVar <: TScalar
 	name::Symbol
 end
 
-== (u::TScalarVar, v::TScalarVar) = (u.name == v.name)
-!= (u::TScalarVar, v::TScalarVar) = !(u == v)
+== (a::TScalarVar, b::TScalarVar) = (a.name == b.name)
+!= (a::TScalarVar, b::TScalarVar) = !(a == b)
 
 type TVar <: TEWise
-	form::Union(Symbol,Expr)
+	name::Symbol
 end
 
-== (u::TVar, v::TVar) = (u.form == v.form)
-!= (u::TVar, v::TVar) = !(u == v)
+== (a::TVar, b::TVar) = (a.name == b.name)
+!= (a::TVar, b::TVar) = !(a == b)
+
+# qualified variable, e.g. abc.x
+type TQVar <: TEWise
+	form::Expr
+end
+
+== (a::TQVar, b::TQVar) = (a.form == b.form)
+!= (a::TQVar, b::TQVar) = !(a == b)
+
+TGeneralVar = Union(TVar, TQVar)
 
 
 # references
 
 abstract TRef <: TEWise
 
-typealias TIndex Union(Symbol,Int)
-
+typealias TIndex Union(Int,Symbol)
 abstract TRange
 
 type TColon <: TRange end
@@ -62,44 +75,62 @@ type TInterval <: TRange
 	last::Union(TIndex,Nothing)
 end
 
-== (u::TInterval, v::TInterval) = (u.first == v.first) && (u.last == v.last)
-!= (u::TInterval, v::TInterval) = !(u == v)
+== (a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
+!= (a::TInterval, b::TInterval) = !(a == b)
 
 abstract TRefScalar <: TScalar
 
 type TRefScalar1 <: TRefScalar
-	host::TVar
+	host::TGeneralVar
 	i::TIndex
 end
 
+== (a::TRefScalar1, b::TRefScalar1) = (a.host == b.host) && (a.i == b.i)
+!= (a::TRefScalar1, b::TRefScalar1) = !(a == b)
+
 type TRefScalar2 <: TRefScalar
-	host::TVar
+	host::TGeneralVar
 	i::TIndex
 	j::TIndex
 end
 
+== (a::TRefScalar2, b::TRefScalar2) = (a.host == b.host) && (a.i == b.i) && (a.j == b.j)
+!= (a::TRefScalar2, b::TRefScalar2) = !(a == b)
+
 type TRef1D <: TRef
-	host::TVar
+	host::TGeneralVar
 	rgn::TRange
 end
 
+== (a::TRef1D, b::TRef1D) = (a.host == b.host) && (a.rgn == b.rgn)
+!= (a::TRef1D, b::TRef1D) = !(a == b)
+
 type TRefCol <: TRef
-	host::TVar
+	host::TGeneralVar
 	rrgn::TRange
 	icol::TIndex
 end
 
+== (a::TRefCol, b::TRefCol) = (a.host == b.host) && (a.rrgn == b.rrgn) && (a.icol == b.icol)
+!= (a::TRefCol, b::TRefCol) = !(a == b)
+
 type TRefRow <: TRef
-	host::TVar
+	host::TGeneralVar
 	irow::TIndex
 	crgn::TRange
 end
 
+== (a::TRefRow, b::TRefRow) = (a.host == b.host) && (a.irow == b.irow) && (a.crgn == b.crgn)
+!= (a::TRefRow, b::TRefRow) = !(a == b)
+
 type TRef2D <: TRef
-	host::TVar
+	host::TGeneralVar
 	rrgn::TRange
 	crgn::TRange
 end
+
+== (a::TRef2D, b::TRef2D) = (a.host == b.host) && (a.rrgn == b.rrgn) && (a.crgn == b.crgn)
+!= (a::TRef2D, b::TRef2D) = !(a == b)
 
 # function calls
 
@@ -131,19 +162,45 @@ end
 
 typealias TFunCall Union(TMap, TReduc, TColwiseReduc, TRowwiseReduc)
 
+function == (a::TFunCall, b::TFunCall) 
+	na = length(a.args)
+	if a.fun == b.fun && typeof(a) == typeof(b) && na == length(b.args)
+		for i = 1 : na
+			if !(a.args[i] == b.args[i])
+				return false
+			end
+		end
+		return true
+	end
+	return false
+end
+
+!= (a::TFunCall, b::TFunCall) = !(a == b)
 
 # others
 
-type TAssign{Lhs<:Union(TVar,TRefScalar,TRef), Rhs<:TExpr} <: TExpr
+typealias TRValue Union(TEWise, TFunCall)
+typealias TLValue Union(TGeneralVar, TRefScalar, TRef)
+
+type TAssign{Lhs<:TLValue, Rhs<:TRValue} <: TExpr
 	lhs::Lhs
 	rhs::Rhs
 	mode::TMode
 end
 
+== (a::TAssign, b::TAssign) = (a.lhs == b.lhs) && (a.rhs == b.rhs)
+!= (a::TAssign, b::TAssign) = !(a == b)
+
+is_trivial_assignment(ex::TAssign) = isa(ex.lhs, TGeneralVar) &&
+	(isa(ex.rhs, TGeneralVar) || isa(ex.rhs, TNum))
+
 type TBlock <: TExpr
-	stmts::Array{TExpr}
-	TBlock() = new(TExpr[])
+	stmts::Array{TAssign}
+	TBlock() = new(TAssign[])
 end
+
+== (a::TBlock, b::TBlock) = length(a.stmts) == length(b.stmts) && all(a.stmts .== b.stmts)
+!= (a::TBlock, b::TBlock) = !(a == b)
 
 
 ##########################################################################
@@ -158,7 +215,7 @@ end
 tmode_num{D}(::EWiseMode{D}) = D
 
 tmode(ex::TScalar) = ScalarMode()
-tmode(ex::TVar) = EWiseMode{0}()
+tmode(ex::TGeneralVar) = EWiseMode{0}()
 
 tmode(ex::TRef1D) = EWiseMode{1}() 
 tmode(ex::TRef2D) = EWiseMode{2}()
@@ -205,25 +262,30 @@ end
 
 tnum(x::Number) = TNum{typeof(x)}(x)
 
-# variable  (can be "a" or "a.b.c")
+# variable
 
 tvar(s::Symbol) = TVar(s)
+tscalarvar(s::Symbol) = TScalarVar(s)
 
-is_valid_var(v::Symbol) = true
-is_valid_var(v::Expr) = v.head == :(.) && 
-	is_valid_var(v.args[1]) && 
-	isa(v.args[2], Expr) && 
-	v.args[2].head == :quote &&
-	isa(v.args[2].args[1], Symbol)
+# qualified variable
 
-function tvar(ex::Expr) 
-	if !is_valid_var(ex)
-		throw(DeError("Unrecognized variable form: $ex"))
-	end
-	TVar(ex)
+function is_valid_tqvar(ex::Expr)
+	@assert ex.head == :(.) && length(ex.args) == 2
+
+	a1 = ex.args[1]
+	a2 = ex.args[2]
+
+	(isa(a1, Symbol) || is_valid_tqvar(a1)) &&
+	a2.head == (:quote) && isa(a2.args[1], Symbol)
 end
 
-tscalarvar(s::Symbol) = TScalarVar(s)
+function tqvar(ex::Expr) 
+	if !is_valid_tqvar(ex)
+		throw(DeError("$ex is not a valid form for variable."))
+	end
+	TQVar(ex)
+end
+
 
 # reference expressions
 
@@ -255,16 +317,16 @@ function tref_arg(ex::Expr)
 		check_simple_ref(false)
 	end
 
-	TRange(first, last)
+	TInterval(first, last)
 end
 
-tref(x::TVar, i::TIndex) = TRefScalar1(x, i)
-tref(x::TVar, r::TRange) = TRef1D(x, r)
+tref(x::TGeneralVar, i::TIndex) = TRefScalar1(x, i)
+tref(x::TGeneralVar, r::TRange) = TRef1D(x, r)
 
-tref(x::TVar, i::TIndex, j::TIndex) = TRefScalar2(x, i, j)
-tref(x::TVar, i::TIndex, c::TRange) = TRefRow(x, i, c)
-tref(x::TVar, r::TRange, j::TIndex) = TRefCol(x, r, j)
-tref(x::TVar, r::TRange, c::TRange) = TRef2D(x, r, c)
+tref(x::TGeneralVar, i::TIndex, j::TIndex) = TRefScalar2(x, i, j)
+tref(x::TGeneralVar, i::TIndex, c::TRange) = TRefRow(x, i, c)
+tref(x::TGeneralVar, r::TRange, j::TIndex) = TRefCol(x, r, j)
+tref(x::TGeneralVar, r::TRange, c::TRange) = TRef2D(x, r, c)
 
 function tref(ex::Expr)
 	@assert ex.head == :(ref)
@@ -272,7 +334,14 @@ function tref(ex::Expr)
 	na = length(ex.args)
 	check_simple_ref(na == 2 || na == 3)
 
-	h = tvar(ex.args[1])
+	h = ex.args[1]
+	if isa(h, Symbol)		
+		h = tvar(h)
+	elseif isa(h, Expr) && h.head == :(.)
+		h = tqvar(h)
+	else
+		check_simple_ref(false)
+	end
 
 	if na == 2
 		a1 = ex.args[2]
@@ -326,7 +395,7 @@ function recognize_partial_reduction(f::Symbol, a::TExpr...)
 	if f == (:sum) || f == (:mean)
 		if length(a) == 2 && isa(a[2], TNum{Int})
 			fargs, deps = check_funcall_args(a[1])
-			dim = a[2].e
+			dim = a[2].val
 			if dim == 1
 				TColwiseReduc(f, fargs, deps)
 			elseif dim == 2
@@ -338,7 +407,7 @@ function recognize_partial_reduction(f::Symbol, a::TExpr...)
 	elseif f == (:max) || f == (:min)
 		if length(a) == 3 && isa(a[2], TEmpty) && isa(a[3], TNum{Int})
 			fargs, deps = check_funcall_args(a[1])
-			dim = a[3].e
+			dim = a[3].val
 			if dim == 1
 				TColwiseReduc(f, fargs, deps)
 			elseif dim == 2
@@ -409,9 +478,9 @@ function decide_assign_tmode(lhs::TExpr, rhs::TExpr)
 
 	# TScalarSym can only be created internally, which would never
 	# be placed on the left hand side
-	@assert !isa(lhs, TScalarSym)
+	@assert !isa(lhs, TScalarVar)
 
-	if isa(lhs, TVar)
+	if isa(lhs, TGeneralVar)
 		mode = tmode(rhs)
 
 	elseif isa(lhs, TRefScalar)
@@ -509,13 +578,14 @@ texpr(x::Symbol) = tvar(x)
 is_empty_tuple(ex::Expr) = ex.head == :(tuple) && isempty(ex.args)
 
 texpr(ex::Expr) = 
+	ex.head == :(.) ? tqvar(ex) :
 	ex.head == :(call) ? tcall(ex) :
 	ex.head == :(comparison) ? tcomparison(ex) :
 	ex.head == :(ref) ? tref(ex) :
 	ex.head == :(=) ? tassign(ex) :
 	ex.head == :(block) ? tblock(ex) :
 	is_empty_tuple(ex) ? TEmpty() :
-	is_opassign(ex.head) ? topassign(ex) :
+	is_opassign(TFun{ex.head}()) ? topassign(ex) :
 	throw(DeError("Unrecognized expression: $ex"))
 
 

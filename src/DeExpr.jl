@@ -12,14 +12,15 @@ export
 	DeError,
 
 	TExpr, TEWise, TScalar, TFunCall,
-	TEmpty, TNum, TScalarVar, TVar, 
+	TEmpty, TNum, TScalarVar, TVar, TQVar, TGeneralVar,  
 	TRef, TIndex, TRange, TColon, TInterval,
 	TRefScalar1, TRefScalar2, TRef1D, TRef2D, TRefRow, TRefCol,
 	TMap, TReduc, TColwiseReduc, TRowwiseReduc,
-	TAssign, TBlock,
+	TLValue, TRValue, TAssign, TBlock,
 
-	texpr, tnum, tscalarvar, tvar, to_expr, 
-	tref, tcall, tassign, topassign, tblock
+	texpr, tnum, tscalarvar, tvar, tqvar,
+	tref, tcall, tassign, topassign, tblock,
+	is_trivial_assignment
 
 import Base.==, Base.!=
 
