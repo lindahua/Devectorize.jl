@@ -15,8 +15,8 @@ get_value(r::Number, ::Int, ::Int) = r
 
 # vector reader
 
-get_value{T<:Number}(r::Array{T}, i::Int) = r[i]
-get_value{T<:Number}(r::Array{T}, i::Int, j::Int) = r[i, j]
+get_value{T<:Number}(r::AbstractArray{T}, i::Int) = r[i]
+get_value{T<:Number}(r::AbstractArray{T}, i::Int, j::Int) = r[i, j]
 
 
 
