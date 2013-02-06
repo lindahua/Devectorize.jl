@@ -29,7 +29,7 @@ import Base.==, Base.!=
 
 include("fun_traits.jl")
 include("texpr.jl")
-#include("meta_tools.jl")
+include("meta_tools.jl")
 
 include("compile_base.jl")
 #include("scalar_backend.jl")

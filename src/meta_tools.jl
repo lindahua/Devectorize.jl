@@ -75,12 +75,12 @@ end
 #
 ##########################################################################
 
-length_getter(ex::TSym) = :( length($(ex.e)) )
+length_getter(ex::TVar) = :( length($(ex.name)) )
 length_getter(ex::TRef1D) = :( length($(ex.host)) )
 length_getter(ex::TRefCol) = :( size($(ex.host), 1) )
 length_getter(ex::TRefRow) = :( size($(ex.host), 2) )
 
-size2d_getter(ex::TSym) = :( size($(ex.e)) )
+size2d_getter(ex::TVar) = :( size($(ex.name)) )
 size2d_getter(ex::TRef2D) = :( size($(ex.host)) )
 
 to_size2d(s::(Int,)) = (s[1], 1)
@@ -119,15 +119,8 @@ ewise_shape(s1, s2, s3, s4...) = promote_shape(ewise_shape(s1, s2), ewise_shape(
 # the hyper-function to generate codes for size inference
 
 size_inference(ex::TScalar) = :( () )
-size_inference(ex::TSym) = :( size($(ex.e)) )
-
-size_inference(ex::TRef1D) = :( (length($(ex.host)),) )
-size_inference(ex::TRefCol) = :( (size($(ex.host),1),) )
-size_inference(ex::TRefRow) = :( (1, size($(ex.host),2)) )
-size_inference(ex::TRef2D) = :( size($(ex.host)) )
-
+size_inference(ex::TVar) = :( size($(ex.name)) )
 size_inference(ex::TAssign) = :( $(size_inference(ex.rhs)) )
-
 
 function args_size_inference(args::(TEWise...,))
 	if length(args) == 1
@@ -147,12 +140,10 @@ size_inference(ex::TMap) = args_size_inference(ex.args)
 #
 ##########################################################################
 
-type_inference(ex::TNum) = :( typeof($(ex.e)) )
-type_inference(ex::TSym) = :( eltype($(ex.e)) )
-type_inference(ex::TScalarSym) = :( typeof($(ex.e)) )
-type_inference(ex::TRefScalar) = :( eltype($(ex.host)) )
+type_inference(ex::TNum) = :( typeof($(ex.val)) )
+type_inference(ex::TVar) = :( eltype($(ex.name)) )
+type_inference(ex::TScalarVar) = :( typeof($(ex.name)) )
 type_inference(ex::TRef) = :( eltype($(ex.host)) )
-
 type_inference(ex::TAssign) = :( $(type_inference(ex.rhs)) )
 
 function type_inference(ex::TFunCall) 
