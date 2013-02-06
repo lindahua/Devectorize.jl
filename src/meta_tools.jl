@@ -68,28 +68,6 @@ function for_statement(i::Symbol, si::TIndex, ei::TIndex, body)
 end
 
 
-
-##########################################################################
-#
-# 	getting size info of LHS
-#
-##########################################################################
-
-length_getter(ex::TVar) = :( length($(ex.name)) )
-length_getter(ex::TRef1D) = :( length($(ex.host)) )
-length_getter(ex::TRefCol) = :( size($(ex.host), 1) )
-length_getter(ex::TRefRow) = :( size($(ex.host), 2) )
-
-size2d_getter(ex::TVar) = :( size($(ex.name)) )
-size2d_getter(ex::TRef2D) = :( size($(ex.host)) )
-
-to_size2d(s::(Int,)) = (s[1], 1)
-to_size2d(s::(Int, Int)) = s
-
-to_length(s::(Int,)) = s[1]
-to_length(s::(Int, Int)) = s[1] * s[2]
-
-
 ##########################################################################
 #
 # 	shape inference
@@ -116,22 +94,84 @@ ewise_shape(s1, s2, s3) = promote_shape(promote_shape(s1, s2), s3)
 
 ewise_shape(s1, s2, s3, s4...) = promote_shape(ewise_shape(s1, s2), ewise_shape(s3, s4...))
 
-# the hyper-function to generate codes for size inference
+# helper for returning 2D size
 
-size_inference(ex::TScalar) = :( () )
-size_inference(ex::TVar) = :( size($(ex.name)) )
-size_inference(ex::TAssign) = :( $(size_inference(ex.rhs)) )
+to_size2d(s::Int) = (s, 1)
+to_size2d(s::(Int,)) = (s[1], 1)
+to_size2d(s::(Int, Int)) = s
 
-function args_size_inference(args::(TEWise...,))
-	if length(args) == 1
-		size_inference(args[1])
+# length inference (from LHS)
+
+length_inference(s::Symbol) = fun_call(:length, s)
+
+length_inference(s::Symbol, rgn::TColon) = fun_call(:length, s)
+
+length_inference_(base_len::Expr, rgn::TColon) = base_len
+
+function length_inference_(base_len::Expr, rgn::TInterval)
+	first = rgn.first
+	last = rgn.last
+
+	blen = last == nothing ? base_len : last
+
+	if isa(first, Int)
+		if first == 1
+			blen
+		else
+			b = first - 1
+			if isa(blen, Int)
+				max(blen - b, 0)
+			else				
+				:( max($blen - $b, 0) )
+			end
+		end
 	else
-		arg_stmts = [size_inference(a) for a in args]
-		fun_call(qname(:ewise_shape), arg_stmts...)
+		if isa(blen, Int)
+			a = blen + 1
+			:( max($a - $first, 0) )
+		else		
+			:( max($blen + 1 - $first, 0) )
+		end
 	end
 end
 
-size_inference(ex::TMap) = args_size_inference(ex.args)
+
+function length_inference(s::Symbol, rgn::TInterval)
+	length_inference_(fun_call(:length, s), rgn)
+end
+
+
+# the hyper-function to generate codes for size inference
+
+function vec_size_inference(s::Symbol, rgn::TColon)
+	:( (length($s),) )
+end
+
+function vec_size_inference(s::Symbol, rgn::TInterval)
+	:( ($(length_inference(s, rgn)),) )
+end
+
+function col_size_inference(s::Symbol, rgn::TColon)
+	:( (size($s, 1),) )
+end
+
+function col_size_inference(s::Symbol, rgn::TInterval)
+	baselen_ = :( size($s, 1) )
+	:( ($(length_inference_(baselen_, rgn)),) )
+end
+
+function row_size_inference(s::Symbol, rgn::TColon)
+	:( (1, size($s, 2)) )
+end
+
+function row_size_inference(s::Symbol, rgn::TInterval)
+	baselen_ = :( size($s, 2) )
+	:( (1, $(length_inference_(baselen_, rgn))) )
+end
+
+function mat_size_inference(s::Symbol, rrgn::TColon, crgn::TColon)
+	fun_call(qname(:to_size2d), fun_call(:size, s))
+end
 
 
 ##########################################################################
@@ -153,4 +193,29 @@ function type_inference(ex::TFunCall)
 
 	fun_call(qname(:result_type), tf, argty_exprs...) 
 end
+
+
+##########################################################################
+#
+# 	indexer
+#
+##########################################################################
+
+indexer(rgn::TColon, i::TIndex) = i
+
+function indexer(rgn::TInterval, i::TIndex) 
+	f = rgn.first	
+	if isa(f, Int)
+		b = f - 1
+		if b == 0
+			i
+		else
+			:($i + $b)
+		end
+	else
+		:($i + ($f - 1))
+	end
+end
+
+
 

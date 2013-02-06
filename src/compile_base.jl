@@ -64,6 +64,8 @@ function add_deps_to_queue(q::Array{TExpr, 1}, ex::TExpr)
 end
 
 
+preferred_mode(ex::TAssign) = isa(ex.mode, EWiseMode{0}) ? EWiseMode{1}() : ex.mode
+
 function compile(ctx::EvalContext, top_expr::TAssign)
 	dep_queue = TExpr[]
 	add_deps_to_queue(dep_queue, top_expr)
@@ -78,34 +80,30 @@ function compile(ctx::EvalContext, top_expr::TAssign)
 		elseif isa(lhs, TGeneralVar)
 			# to ensure no alias between left and right hand side
 			tmp = gensym("tmp")
-			emode = top_expr.mode
-			safe_expr = TAssign(tvar(tmp), rhs, emode)
+			safe_expr = tassign(tvar(tmp), rhs)
 			flatten_code_block(
-				code_block(compile(ctx, emode, safe_expr)),
+				code_block(compile(ctx, preferred_mode(safe_expr), safe_expr)),
 				assignment(ju_expr(lhs), tmp) )
 
 		else 
-			compile(ctx, tmode(top_expr), top_expr)
+			compile(ctx, preferred_mode(top_expr), top_expr)
 		end	
 	else
 		push!(dep_queue, top_expr)
-		codes = [compile(ctx, tmode(e), e) for e in dep_queue]
+		codes = [compile(ctx, preferred_mode(e), e) for e in dep_queue]
 		code_block(codes...)
 	end
 end
 
-function compile(ctx::EvalContext, mode::TMode, ex::TAssign)
-
-	# compose parts
-
-	mode_ = isa(mode, EWiseMode{0}) ? EWiseMode{1}() : mode
-
-	(init, info) = compose_init(ctx, mode_, ex)
-	main_body = compose_main(ctx, mode_, ex, info)
-
-	# integrate
-	flatten_code_block(code_block(init, main_body))
-end
+#####################################################################
+#
+#  Note: the following function:  
+#
+#		compile(ctx, mode, assign_ex) 
+#
+#	should be provided by the back-end
+#
+#####################################################################
 
 
 function compile(ctx::EvalContext, ex::TBlock)

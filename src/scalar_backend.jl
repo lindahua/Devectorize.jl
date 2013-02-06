@@ -15,351 +15,331 @@ get_value(r::Number, ::Int, ::Int) = r
 
 # vector reader
 
+get_value{T<:Number}(r::Array{T}, i::Int) = r[i]
+get_value{T<:Number}(r::Array{T}, i::Int, j::Int) = r[i, j]
 get_value{T<:Number}(r::AbstractArray{T}, i::Int) = r[i]
 get_value{T<:Number}(r::AbstractArray{T}, i::Int, j::Int) = r[i, j]
 
+# result creation
+
+create_result(T::Type, ::()) = zero(T)
+create_result(T::Type, siz::(Int...,)) = Array(T, siz)
 
 
 ##########################################################################
 #
-# 	scalar kernel
-#
-##########################################################################
-
-function compose_scalar(ctx::ScalarContext, ex::TNum)
-	pre = nothing
-	kernel = :( $(ex.e) )
-	(pre, kernel)
-end
-
-function compose_scalar(ctx::ScalarContext, ex::TScalarSym)
-	pre = nothing
-	kernel = :( $(ex.e) )
-	(pre, kernel)
-end
-
-function compose_scalar(ctx::ScalarContext, ex::TRefScalar1)
-	@gensym rv
-	pre = assignment(rv, :( $(ex.host)[$(ex.i)] ))
-	kernel = :( $rv )
-	(pre, kernel)
-end
-
-function compose_scalar(ctx::ScalarContext, ex::TRefScalar2)
-	@gensym rv
-	pre = assignment(rv, :( $(ex.host)[$(ex.i), $(ex.j)] ))
-	kernel = :( $rv )
-	(pre, kernel)
-end
-
-function compose_scalar(ctx::ScalarContext, ex::TMap)
-	@gensym rv
-
-	arg_rs = [compose_scalar(ctx, a) for a in ex.args]
-
-	arg_pres = [r[1] for r in arg_rs]
-	arg_kers = [r[2] for r in arg_rs]
-
-	pre = code_block(arg_pres..., 
-		assignment(rv, fun_call(ex.fun, arg_kers...)))
-	kernel = :( $(rv) )
-	(pre, kernel)
-end
-
-
-compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TScalar,   
-	i::Symbol) = compose_scalar(ctx, ex)
-
-compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TScalar,   
-	i::Symbol, j::Symbol) = compose_scalar(ctx, ex)
-
-
-##########################################################################
-#
-# 	kernel composition
+# 	Assignment composition
 #
 ##########################################################################
 
 
-# 1D EWise
+function compose_kernel(ctx::ScalarContext, ex::TAssign, lhs_info, rhs_info, i::Symbol)
 
-# assignment
-
-function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, i::Symbol)
-	lhs_pre, lhs_kernel = compose_lhs(ctx, mode, ex.lhs, i)
-	rhs_pre, rhs_kernel = compose(ctx, mode, ex.rhs, i)
-
-	pre = code_block(lhs_pre, rhs_pre)
-	kernel = assignment(lhs_kernel, rhs_kernel)
-	(pre, kernel)
+	lhs_kernel = compose_lhs_kernel(ctx, ex.lhs, lhs_info, i)
+	rhs_kernel = compose_rhs_kernel(ctx, ex.rhs, rhs_info, i)
+	assignment(lhs_kernel, rhs_kernel)
 end
 
-# LHS
+function compose_kernel(ctx::ScalarContext, ex::TAssign, lhs_info, rhs_info, i::Symbol, j::Symbol)
 
-function compose_lhs(ctx::ScalarContext, mode::EWiseMode{1}, ex::TSym, i::Symbol)
-	pre = nothing
-	kernel = :( $(ex.e)[($i)] )
-	(pre, kernel)
-end
-
-function compose_lhs(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRef1D, i::Symbol)
-	pre = nothing
-	kernel = :( $(ex.host)[($i)] )
-	(pre, kernel)
-end
-
-# RHS
-
-function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TSym, i::Symbol)
-	pre = nothing
-	kernel = fun_call(qname(:get_value), ex.e, i)
-	(pre, kernel)
-end
-
-function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRef1D, i::Symbol)
-	pre = nothing
-	kernel = :( $(ex.host)[$i] )
-	(pre, kernel)
-end
-
-function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRefCol, i::Symbol)
-	@gensym icol
-	pre = :( $icol = convert(Int, $(ex.icol)) )
-	kernel = :(  $(ex.host)[$i, $icol] )
-	(pre, kernel)
-end
-
-function compose(ctx::ScalarContext, mode::EWiseMode{1}, ex::TRefRow, i::Symbol)
-	@gensym irow
-	pre = :( $irow = convert(Int, $(ex.irow)) )
-	kernel = :( $(ex.host)[$irow, $i] )
-	(pre, kernel)
+	lhs_kernel = compose_lhs_kernel(ctx, ex.lhs, lhs_info, i, j)
+	rhs_kernel = compose_rhs_kernel(ctx, ex.rhs, rhs_info, i, j)
+	assignment(lhs_kernel, rhs_kernel)
 end
 
 
-# 2D EWise
+##########################################################################
+#
+# 	LHS composition
+#
+##########################################################################
 
-# assignment
+# general setup routine for symbol replacement
 
-function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, i::Symbol, j::Symbol)
-	lhs_pre, lhs_kernel = compose_lhs(ctx, mode, ex.lhs, i, j)
-	rhs_pre, rhs_kernel = compose(ctx, mode, ex.rhs, i, j)
-
-	pre = code_block(lhs_pre, rhs_pre)
-	kernel = assignment(lhs_kernel, rhs_kernel)
-	(pre, kernel)
-end
-
-
-# LHS
-
-function compose_lhs(ctx::ScalarContext, mode::EWiseMode{2}, ex::TSym, i::Symbol, j::Symbol)
-	pre = nothing
-	kernel = :( $(ex.e)[($i), ($j)] )
-	(pre, kernel)
-end
-
-function compose_lhs(ctx::ScalarContext, mode::EWiseMode{2}, ex::TRef2D, i::Symbol, j::Symbol)
-	pre = nothing
-	kernel = :( $(ex.host)[($i), ($j)] )
-	(pre, kernel)
-end
-
-# RHS
-
-function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TSym, i::Symbol, j::Symbol)
-	pre = nothing
-	kernel = fun_call(qname(:get_value), ex.e, i, j)
-	(pre, kernel)
-end
-
-function compose(ctx::ScalarContext, mode::EWiseMode{2}, ex::TRef2D, i::Symbol, j::Symbol)
-	pre = nothing
-	kernel = :( $(ex.host)[($i), ($j)] )
-	(pre, kernel)
-end
-
-
-# Maps
-
-function compose(ctx::ScalarContext, mode::EWiseMode, ex::TMap, sinfo...)
-	if isa(ex.mode, ScalarMode)
-		compose_scalar(ctx, ex)
+function with_sym_replacement(ex::TGeneralVar)
+	if isa(ex, TVar)
+		(nothing, ex.name)
 	else
-		arg_rs = [compose(ctx, mode, a, sinfo...) for a in ex.args]
-
-		arg_pres = [r[1] for r in arg_rs]
-		arg_kers = [r[2] for r in arg_rs]
-
-		pre = code_block(arg_pres...)
-		kernel = fun_call(ex.fun, arg_kers...)
-		(pre, kernel)
+		t = gensym("t")
+		pre = assignment(t, ju_expr(ex))
+		(pre, t)
 	end
 end
 
-# Scalar case
 
-compose(ctx::ScalarContext, mode::ScalarMode, ex::TNum) = :( $(ex.e) )
-compose(ctx::ScalarContext, mode::ScalarMode, ex::TSym) = :( $(ex.e) )
-compose(ctx::ScalarContext, mode::ScalarMode, ex::TScalarSym) = :( $(ex.e) )
+# TVar
 
-compose(ctx::ScalarContext, mode::ScalarMode, ex::TRefScalar1) = :( $(ex.host)[$(ex.i)] )
-compose(ctx::ScalarContext, mode::ScalarMode, ex::TRefScalar2) = :( $(ex.host)[$(ex.i), $(ex.j)] )
-
-function compose(ctx::ScalarContext, mode::ScalarMode, ex::TMap)
-	arg_calcs = [compose(ctx, mode, a) for a in ex.args]
-	fun_call(ex.fun, arg_calcs...)
+function setup_lhs(ctx::ScalarContext, ex::TVar)
+	(nothing, nothing)
 end
 
-function compose(ctx::ScalarContext, mode::ScalarMode, ex::TAssign)
-	l = compose(ctx, mode, ex.lhs)
-	r = compose(ctx, mode, ex.rhs)
-	:( ($l) = ($r) )
+function length_getter(ctx::ScalarContext, lhs::TVar, info::Nothing)
+	fun_call(:length, lhs.name)
 end
+
+function size2d_getter(ctx::ScalarContext, lhs::TVar, info::Nothing)
+	fun_call(qname(:to_size2d), fun_call(:size, lhs.name))
+end
+
+function compose_lhs_kernel(ctx::ScalarContext, ex::TVar, info::Nothing, i::Symbol)
+	:( $(ex.name)[$i] )
+end
+
+function compose_lhs_kernel(ctx::ScalarContext, ex::TVar, info::Nothing, i::Symbol, j::Symbol)
+	:( $(ex.name)[$i, $j] )
+end
+
+# TRef1D
+
+function setup_lhs(ctx::ScalarContext, ex::TRef1D)
+	with_sym_replacement(ex.host)
+end
+
+function length_getter(ctx::ScalarContext, lhs::TRef1D, h::Symbol)
+	length_inference(h, lhs.rgn)
+end
+
+function compose_lhs_kernel(ctx::ScalarContext, ex::TRef1D, h::Symbol, i::Symbol)
+	:( $(h)[$(indexer(ex.rgn, i))] )
+end
+
+# TRefCol
+
+function setup_lhs(ctx::ScalarContext, ex::TRefCol)
+	(hpre, h) = with_sym_replacement(ex.host)
+	if isa(ex.icol, Int)
+		icol = ex.icol
+		pre = hpre
+	else
+		icol = gensym("icol")
+		pre = code_block(hpre, 
+			assignment(icol, fun_call(:convert, :Int, ex.icol)) )
+	end
+	(pre, (h, icol))
+end
+
+function length_getter(ctx::ScalarContext, lhs::TRefCol, info)
+	baselen = fun_call(:size, info[1], 1)
+	length_inference_(baselen, lhs.rrgn)
+end
+
+function compose_lhs_kernel(ctx::ScalarContext, ex::TRefCol, info, i::Symbol)
+	h, icol = info
+	:( $(h)[$(indexer(ex.rrgn, i)), $icol] )
+end
+
+# TRefRow
+
+function setup_lhs(ctx::ScalarContext, ex::TRefRow)
+	(hpre, h) = with_sym_replacement(ex.host)
+	if isa(ex.irow, Int)
+		irow = ex.irow
+		pre = hpre
+	else
+		irow = gensym("irow")
+		pre = code_block(hpre, 
+			assignment(irow, fun_call(:convert, :Int, ex.irow)) )
+	end
+	(pre, (h, irow))
+end
+
+function length_getter(ctx::ScalarContext, lhs::TRefRow, info)
+	baselen = fun_call(:size, info[1], 2)
+	length_inference_(baselen, lhs.crgn)
+end
+
+function compose_lhs_kernel(ctx::ScalarContext, ex::TRefRow, info, i::Symbol)
+	h, irow = info
+	:( $(h)[$irow, $(indexer(ex.crgn, i))] )
+end
+
+# TRef2D
+
+function setup_lhs(ctx::ScalarContext, ex::TRef2D)
+	with_sym_replacement(ex.host)
+end
+
+function size2d_getter(ctx::ScalarContext, lhs::TRef2D, h::Symbol)
+	mat_size_inference(h, lhs.rrgn, lhs.crgn)
+end
+
+function compose_lhs_kernel(ctx::ScalarContext, ex::TRef2D, h::Symbol, i::Symbol, j::Symbol)
+	:( $(h)[$(indexer(ex.rrgn, i)), $(indexer(ex.crgn, j))] )
+end
+
+
+##########################################################################
+#
+# 	RHS composition
+#
+##########################################################################
+
+# TNum
+
+function setup_rhs(ctx::ScalarContext, ex::TNum)
+	init = nothing
+	siz = :()
+	ty = fun_call(:typeof, ex.val)
+	final = nothing
+	info = nothing
+	(init, siz, ty, final, info)
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TNum, info::Nothing, i::Symbol)
+	ex.val
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TNum, info::Nothing, i::Symbol, j::Symbol)
+	ex.val
+end
+
+# TVar
+
+function setup_rhs(ctx::ScalarContext, ex::TVar)
+	init = nothing
+	siz = fun_call(:size, ex.name)
+	ty = fun_call(:eltype, ex.name)
+	final = nothing
+	info = nothing
+	(init, siz, ty, final, info)
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TVar, info::Nothing, i::Symbol)
+	fun_call(qname(:get_value), ex.name, i)
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TVar, info::Nothing, i::Symbol, j::Symbol)
+	fun_call(qname(:get_value), ex.name, i, j)
+end
+
+# TScalarVar
+
+function setup_rhs(ctx::ScalarContext, ex::TScalarVar)
+	init = nothing
+	siz = :()
+	ty = fun_call(:typeof, ex.name)
+	final = nothing
+	info = nothing
+	(init, siz, ty, final, info)
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TScalarVar, info::Nothing, i::Symbol)
+	ex.name
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TScalarVar, info::Nothing, i::Symbol, j::Symbol)
+	ex.name
+end
+
+# other TGeneralVar (e.g. TGeneralRef1, TGeneralRef2)
+
+function setup_rhs(ctx::ScalarContext, ex::TGeneralVar)
+	t = gensym("t")
+	init = assignment(t, ju_expr(ex))
+	siz = fun_call(:size, t)
+	ty = fun_call(:eltype, t)
+	final = nothing
+	(init, siz, ty, final, t)
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TGeneralVar, t::Symbol, i::Symbol)
+	fun_call(qname(:get_value), t, i)
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TGeneralVar, t::Symbol, i::Symbol, j::Symbol)
+	fun_call(qname(:get_value), t, i, j)
+end
+
+
+# TRef1D, TRefCol, TRefRow
+
+function setup_rhs(ctx::ScalarContext, ex::TRef1D)
+	(init, h) = setup_lhs(ctx, ex)
+	siz = vec_size_inference(h, ex.rgn)
+	ty = fun_call(:eltype, h)
+	final = nothing
+	(init, siz, ty, final, h)
+end
+
+function setup_rhs(ctx::ScalarContext, ex::TRefCol)
+	(init, info) = setup_lhs(ctx, ex)
+	h = info[1]
+	siz = col_size_inference(h, ex.rrgn)
+	ty = fun_call(:eltype, h)
+	final = nothing
+	(init, siz, ty, final, info)
+end
+
+function setup_rhs(ctx::ScalarContext, ex::TRefRow)
+	(init, info) = setup_lhs(ctx, ex)
+	h = info[1]
+	siz = row_size_inference(h, ex.crgn)
+	ty = fun_call(:eltype, h)
+	final = nothing
+	(init, siz, ty, final, info)
+end
+
+compose_rhs_kernel(ctx::ScalarContext, ex::Union(TRef1D, TRefCol, TRefRow), info, 
+	i::Symbol) = compose_lhs_kernel(ctx, ex, info, i)
+
+
+# TRef2D
+
+function setup_rhs(ctx::ScalarContext, ex::TRef2D)
+	(init, h) = setup_lhs(ctx, ex)
+	siz = mat_size_inference(h, ex.rrgn, ex.crgn)
+	ty = fun_call(:eltype, h)
+	final = nothing
+	(init, siz, ty, final, h)
+end
+
+compose_rhs_kernel(ctx::ScalarContext, ex::TRef2D, h::Symbol, 
+	i::Symbol, j::Symbol) = compose_lhs_kernel(ctx, ex, h, i, j)
+
 
 
 # Full reduction
 
-function reduc_computation(f::TFun{:(sum)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-	empty_val = :( zero($ty) )
-	init_val = :( $(xs[1]) )
-	updater = :( $s += $(xs[1]) )
-	post = nothing
-	(empty_val, init_val, updater, post)
-end
+# function reduc_computation(f::TFun{:(sum)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+# 	empty_val = :( zero($ty) )
+# 	init_val = :( $(xs[1]) )
+# 	updater = :( $s += $(xs[1]) )
+# 	post = nothing
+# 	(empty_val, init_val, updater, post)
+# end
 
-function reduc_computation(f::TFun{:(max)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-	empty_val = :( typemin($ty) )
-	init_val = :( $(xs[1]) )
-	updater = :( $s = max($s, $(xs[1])) )
-	post = nothing
-	(empty_val, init_val, updater, post)
-end
+# function reduc_computation(f::TFun{:(max)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+# 	empty_val = :( typemin($ty) )
+# 	init_val = :( $(xs[1]) )
+# 	updater = :( $s = max($s, $(xs[1])) )
+# 	post = nothing
+# 	(empty_val, init_val, updater, post)
+# end
 
-function reduc_computation(f::TFun{:(min)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-	empty_val = :( typemax($ty) )
-	init_val = :( $(xs[1]) )
-	updater = :( $s = min($s, $(xs[1])) )
-	post = nothing
-	(empty_val, init_val, updater, post)
-end
+# function reduc_computation(f::TFun{:(min)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+# 	empty_val = :( typemax($ty) )
+# 	init_val = :( $(xs[1]) )
+# 	updater = :( $s = min($s, $(xs[1])) )
+# 	post = nothing
+# 	(empty_val, init_val, updater, post)
+# end
 
-function reduc_computation(f::TFun{:(mean)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-	empty_val = :( zero($ty) )
-	init_val = :( $(xs[1]) )
-	updater = :( $s += $(xs[1]) )
-	post = :( $s /= $n )
-	(empty_val, init_val, updater, post)
-end
+# function reduc_computation(f::TFun{:(mean)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+# 	empty_val = :( zero($ty) )
+# 	init_val = :( $(xs[1]) )
+# 	updater = :( $s += $(xs[1]) )
+# 	post = :( $s /= $n )
+# 	(empty_val, init_val, updater, post)
+# end
 
-function reduc_computation(f::TFun{:(dot)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-	empty_val = :( zero($ty) )
-	init_val = :( $(xs[1]) * $(xs[2]) )
-	updater = :( $s += $(xs[1]) * $(xs[2]) )
-	post = nothing
-	(empty_val, init_val, updater, post)
-end
+# function reduc_computation(f::TFun{:(dot)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+# 	empty_val = :( zero($ty) )
+# 	init_val = :( $(xs[1]) * $(xs[2]) )
+# 	updater = :( $s += $(xs[1]) * $(xs[2]) )
+# 	post = nothing
+# 	(empty_val, init_val, updater, post)
+# end
 
-
-##########################################################################
-#
-# 	init-part composition
-#
-##########################################################################
-
-compose_init(ctx::ScalarContext, mode::ScalarMode, ex::TAssign) = (nothing, nothing)
-
-function compose_init(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
-
-	@gensym siz len ty
-
-	if isa(ex.lhs, TSym)
-		code = code_block(
-			assignment(siz, size_inference(ex)),
-			assignment(ty, type_inference(ex)),
-			assignment(ex.lhs.e, fun_call(:Array, ty, siz)),
-			assignment(len, length_getter(ex.lhs))
-		)
-	else
-		code = assignment(len, length_getter(ex.lhs))
-	end
-
-	(code, len)
-end
-
-function compose_init(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign)
-
-	@gensym siz ty
-
-	if isa(ex.lhs, TSym)
-		code = code_block(
-			assignment(siz, size_inference(ex)),
-			assignment(ty, type_inference(ex)),
-			assignment(ex.lhs.e, fun_call(:Array, ty, siz))
-		)
-	else
-		code = assignment(siz, size2d_getter(ex.lhs))
-	end
-
-	(code, siz)
-end
-
-function compose_init(ctx::ScalarContext, mode::ReducMode, ex::TAssign)
-
-	@gensym tmp ty siz
-
-	s = isa(ex.lhs, TSym) ? ex.lhs.e : tmp
-
-	code = code_block(
-		assignment(ty, type_inference(ex)),
-		assignment(siz, args_size_inference(ex.rhs.args))
-	)
-	(code, (s, siz, ty))
-end
-
-
-function compose_init(ctx::ScalarContext, mode::ColwiseReducMode, ex::TAssign)
-	@gensym siz ty
-
-	r = ex.rhs
-
-	if isa(ex.lhs, TSym)
-		code = quote
-			($ty) = $(type_inference(ex))
-			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
-			$(ex.lhs.e) = Array(($ty), (1, ($siz)[2]))
-		end
-	else
-		code = quote
-			($ty) = $(type_inference(ex.lhs))
-			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
-		end
-	end
-
-	(code, (siz, ty))
-end
-
-
-function compose_init(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign)
-	@gensym siz ty
-
-	r = ex.rhs
-
-	if isa(ex.lhs, TSym)
-		code = quote
-			($ty) = $(type_inference(ex))
-			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
-			$(ex.lhs.e) = Array(($ty), (($siz)[1], 1))
-		end
-	else
-		code = quote
-			($ty) = $(type_inference(ex.lhs))
-			($siz) = DeExpr.to_size2d($(args_size_inference(r.args)))
-		end
-	end
-
-	(code, (siz, ty))
-end
 
 
 ##########################################################################
@@ -368,275 +348,342 @@ end
 #
 ##########################################################################
 
-# Element-wise
+# Element-wise 1D
 
-compose_main(ctx::ScalarContext, mode::ScalarMode, ex::TAssign, ::Nothing) = compose(ctx, mode, ex)
+function compile(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
 
-function compose_main(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign, len::Symbol)
+	lhs = ex.lhs
+	rhs = ex.rhs
 
-	i = gensym("i")
-	(pre, kernel) = compose(ctx, mode, ex, i)
-	
-	main_loop = for_statement(i, 1, len, kernel)
-	code_block(pre, main_loop)
-end
+	@assert(isa(lhs, TVar) || isa(lhs, TRef))
 
-function compose_main(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign, siz::Symbol)
+	# setup rhs
 
-	@gensym i j m n
-	(pre, kernel) = compose(ctx, mode, ex, i, j)
-	
-	main_loop = quote
-		($m) = ($siz)[1]
-		($n) = ($siz)[2]
-		for ($j) = 1 : ($n)
-			for ($i) = 1 : ($m)
-				($kernel)
-			end
-		end
+	(rhs_init, rhs_siz, rhs_ty, rhs_final, rhs_info) = setup_rhs(ctx, rhs)
+
+	# setup lhs
+
+	if isa(lhs, TVar)
+		siz = gensym("siz")
+		ty = gensym("ty")
+
+		init_lhs = code_block(
+			assignment(siz, rhs_siz),
+			assignment(ty, rhs_ty),
+			assignment(lhs.name, fun_call(qname(:create_result), ty, siz))
+		)
+
+		lhs_pre = init_lhs
+		lhs_info = nothing
+	else
+		(lhs_pre, lhs_info) = setup_lhs(ctx, lhs)
 	end
 
-	main = code_block(
-		assignment(m, :(($siz)[1])),
-		assignment(n, :(($siz)[2])),
-		for_statement(j, 1, n, 
-			for_statement(i, 1, m, kernel)
-		)
-	)
+	len = gensym("len")
+	get_len = assignment(len, length_getter(ctx, lhs, lhs_info))
 
-	code_block(pre, main_loop)
+	# kernel & main loop
+
+	i = gensym("i")
+	kernel = compose_kernel(ctx, ex, lhs_info, rhs_info, i)
+	
+	main_loop = for_statement(i, 1, len, kernel)
+
+	# integrate
+
+	flatten_code_block(
+		rhs_init,
+		lhs_pre,
+		get_len, 
+		main_loop, 
+		rhs_final)
 end
+
+
+# Element-wise 2D
+
+function compile(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign)
+
+	lhs = ex.lhs
+	rhs = ex.rhs
+
+	@assert(isa(lhs, TVar) || isa(lhs, TRef))
+
+	# setup rhs
+
+	(rhs_init, rhs_siz, rhs_ty, rhs_final, rhs_info) = setup_rhs(ctx, rhs)
+
+	# setup lhs
+
+	if isa(lhs, TVar)
+		ty = gensym("ty")
+		siz = gensym("siz")
+		init_lhs = code_block(
+			assignment(siz, rhs_siz),
+			assignment(ty, rhs_ty),
+			assignment(lhs.name, fun_call(qname(:create_result), ty, siz))
+		)
+
+		lhs_pre = init_lhs
+		lhs_info = nothing
+	else
+		(lhs_pre, lhs_info) = setup_lhs(ctx, lhs)
+	end
+
+	m = gensym("m")
+	n = gensym("n")
+	get_mn = expr(:(=), :( ($m, $n) ), size2d_getter(ctx, lhs, lhs_info))
+
+	# kernel & main loop
+
+	i = gensym("i")
+	j = gensym("j")
+	kernel = compose_kernel(ctx, ex, lhs_info, rhs_info, i, j)
+	
+	main_loop = for_statement(j, 1, n, for_statement(i, 1, m, kernel))
+
+	# integrate
+
+	flatten_code_block(
+		rhs_init,
+		lhs_pre,
+		get_mn, 
+		main_loop, 
+		rhs_final)
+end
+
+
 
 # Full reduction
 
-function compose_reduc_core(ctx::ScalarContext, mode::EWiseMode, r::Union(TReduc, TColwiseReduc, TRowwiseReduc),  
-	ty::Symbol, s::Symbol, n::Symbol, idxinfo...)
+# function compose_reduc_core(ctx::ScalarContext, mode::EWiseMode, r::Union(TReduc, TColwiseReduc, TRowwiseReduc),  
+# 	ty::Symbol, s::Symbol, n::Symbol, idxinfo...)
 
-	@gensym x1 x2
+# 	@gensym x1 x2
 
-	na = length(r.args)
-	tfun = TFun{r.fun}()
+# 	na = length(r.args)
+# 	tfun = TFun{r.fun}()
 
-	if na == 1
-		arg1_pre, arg1_calc = compose(ctx, mode, r.args[1], idxinfo...)
-		rempty, rinit, rupdate, rpost = reduc_computation(tfun, ty, s, n, x1)
-		arg_pre = arg1_pre
-		arg_calc = assignment(x1, arg1_calc)
-	elseif na == 2
-		arg1_pre, arg1_calc = compose(ctx, mode, r.args[1], idxinfo...)
-		arg2_pre, arg2_calc = compose(ctx, mode, r.args[2], idxinfo...)
-		rempty, rinit, rupdate, rpost = reduc_computation(tfun, ty, s, n, x1, x2)
-		arg_pre = code_block(arg1_pre, arg2_pre)
-		arg_calc = code_block(
-			assignment(x1, arg1_calc),
-			assignment(x2, arg2_calc)
-		)
-	end
+# 	if na == 1
+# 		arg1_pre, arg1_calc = compose(ctx, mode, r.args[1], idxinfo...)
+# 		rempty, rinit, rupdate, rpost = reduc_computation(tfun, ty, s, n, x1)
+# 		arg_pre = arg1_pre
+# 		arg_calc = assignment(x1, arg1_calc)
+# 	elseif na == 2
+# 		arg1_pre, arg1_calc = compose(ctx, mode, r.args[1], idxinfo...)
+# 		arg2_pre, arg2_calc = compose(ctx, mode, r.args[2], idxinfo...)
+# 		rempty, rinit, rupdate, rpost = reduc_computation(tfun, ty, s, n, x1, x2)
+# 		arg_pre = code_block(arg1_pre, arg2_pre)
+# 		arg_calc = code_block(
+# 			assignment(x1, arg1_calc),
+# 			assignment(x2, arg2_calc)
+# 		)
+# 	end
 
-	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost)
-end
-
-
-function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, l::TExpr, r::TReduc, info)
-	@gensym n i
-	s, siz, ty = info
-
-	# computation kernels
-
-	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
-		ctx, mode, r, ty, s, n, i)
-
-	# store back statement
-
-	if isa(l, TSym)
-		store_back = quote end
-	else
-		store_back = :( $(compose(ctx, ScalarMode(), l)) = ($s) ) 
-	end
-
-	flatten_code_block(
-		assignment(n, fun_call(qname(:to_length), siz)),
-		arg_pre,
-		assignment(s, rempty),
-		for_statement( i, 1, n, code_block(
-			arg_calc,
-			rupdate
-		) ),
-		rpost,
-		store_back
-	)
-end
+# 	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost)
+# end
 
 
-function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, l::TExpr, r::TReduc, info)
-	@gensym len m n i j
-	s, siz, ty = info
+# function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{1}, l::TExpr, r::TReduc, info)
+# 	@gensym n i
+# 	s, siz, ty = info
 
-	# computation kernels
+# 	# computation kernels
 
-	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
-		ctx, mode, r, ty, s, len, i, j)
+# 	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
+# 		ctx, mode, r, ty, s, n, i)
 
-	# store back statement
+# 	# store back statement
 
-	if isa(l, TSym)
-		store_back = quote end
-	else
-		store_back = :( $(compose(ctx, ScalarMode(), l)) = ($s) ) 
-	end
+# 	if isa(l, TSym)
+# 		store_back = quote end
+# 	else
+# 		store_back = :( $(compose(ctx, ScalarMode(), l)) = ($s) ) 
+# 	end
 
-	# major block (for where n > 0)
-
-	mblock = flatten_code_block(
-		arg_pre,
-		assignment(s, rempty),
-		for_statement( j, 1, n, code_block(
-			for_statement( i, 1, m, code_block(
-				arg_calc,
-				rupdate
-			) )
-		) ),
-		rpost
-	)
-
-	# wrap up 
-
-	flatten_code_block(
-		if_statement( :(length($siz) == 1), 
-			code_block(
-				assignment(m, :(($siz)[1]) ),
-				assignment(n, :(1) ),
-				assignment(len, m),
-			),
-			code_block(
-				assignment(m, :(($siz)[1]) ),
-				assignment(n, :(($siz)[2]) ),
-				assignment(len, fun_call(:*, m, n)),
-			)
-		),
-		if_statement( :( ($len) > 0 ),
-			mblock,
-			assignment(s, rempty)
-		),
-		store_back
-	)
-end
+# 	flatten_code_block(
+# 		assignment(n, fun_call(qname(:to_length), siz)),
+# 		arg_pre,
+# 		assignment(s, rempty),
+# 		for_statement( i, 1, n, code_block(
+# 			arg_calc,
+# 			rupdate
+# 		) ),
+# 		rpost,
+# 		store_back
+# 	)
+# end
 
 
-function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, info)
-	lhs = ex.lhs
-	rhs = ex.rhs
+# function compose_reduc_main(ctx::ScalarContext, mode::EWiseMode{2}, l::TExpr, r::TReduc, info)
+# 	@gensym len m n i j
+# 	s, siz, ty = info
 
-	rmode = rhs.arg_mode
-	if isa(rmode, EWiseMode{0})
-		rmode = EWiseMode{1}()
-	end
+# 	# computation kernels
 
-	main = compose_reduc_main(ctx, rmode, lhs, rhs, info)
-end
+# 	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
+# 		ctx, mode, r, ty, s, len, i, j)
+
+# 	# store back statement
+
+# 	if isa(l, TSym)
+# 		store_back = quote end
+# 	else
+# 		store_back = :( $(compose(ctx, ScalarMode(), l)) = ($s) ) 
+# 	end
+
+# 	# major block (for where n > 0)
+
+# 	mblock = flatten_code_block(
+# 		arg_pre,
+# 		assignment(s, rempty),
+# 		for_statement( j, 1, n, code_block(
+# 			for_statement( i, 1, m, code_block(
+# 				arg_calc,
+# 				rupdate
+# 			) )
+# 		) ),
+# 		rpost
+# 	)
+
+# 	# wrap up 
+
+# 	flatten_code_block(
+# 		if_statement( :(length($siz) == 1), 
+# 			code_block(
+# 				assignment(m, :(($siz)[1]) ),
+# 				assignment(n, :(1) ),
+# 				assignment(len, m),
+# 			),
+# 			code_block(
+# 				assignment(m, :(($siz)[1]) ),
+# 				assignment(n, :(($siz)[2]) ),
+# 				assignment(len, fun_call(:*, m, n)),
+# 			)
+# 		),
+# 		if_statement( :( ($len) > 0 ),
+# 			mblock,
+# 			assignment(s, rempty)
+# 		),
+# 		store_back
+# 	)
+# end
 
 
-function compose_main(ctx::ScalarContext, mode::ColwiseReducMode, ex::TAssign, info)
-	lhs = ex.lhs
-	rhs = ex.rhs
-	@assert length(rhs.args) == 1
+# function compose_main(ctx::ScalarContext, mode::ReducMode, ex::TAssign, info)
+# 	lhs = ex.lhs
+# 	rhs = ex.rhs
 
-	siz, ty = info
-	@gensym m n i j s
+# 	rmode = rhs.arg_mode
+# 	if isa(rmode, EWiseMode{0})
+# 		rmode = EWiseMode{1}()
+# 	end
 
-	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
-		ctx, EWiseMode{2}(), rhs, ty, s, m, i, j)
-	lhs_j_pre, lhs_j = compose_lhs(ctx, EWiseMode{1}(), lhs, j)
-
-	flatten_code_block( 
-		assignment(m, :(($siz)[1])),
-		assignment(n, :(($siz)[2])),
-		lhs_j_pre,
-		arg_pre,
-		for_statement( j, 1, n, flatten_code_block(
-			assignment(s, rempty),
-			for_statement( i, 1, m, code_block(
-				arg_calc,
-				rupdate
-			) ),
-			rpost,
-			:( ($lhs_j) = ($s) )
-		) )
-	)
-end
+# 	main = compose_reduc_main(ctx, rmode, lhs, rhs, info)
+# end
 
 
-function compose_main(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign, info)
-	lhs = ex.lhs
-	rhs = ex.rhs
-	@assert length(rhs.args) == 1
+# function compose_main(ctx::ScalarContext, mode::ColwiseReducMode, ex::TAssign, info)
+# 	lhs = ex.lhs
+# 	rhs = ex.rhs
+# 	@assert length(rhs.args) == 1
 
-	siz, ty = info
-	@gensym m n i j s
+# 	siz, ty = info
+# 	@gensym m n i j s
 
-	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
-		ctx, EWiseMode{2}(), rhs, ty, s, n, i, j)
-	lhs_i_pre, lhs_i = compose_lhs(ctx, EWiseMode{1}(), lhs, i)
+# 	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
+# 		ctx, EWiseMode{2}(), rhs, ty, s, m, i, j)
+# 	lhs_j_pre, lhs_j = compose_lhs(ctx, EWiseMode{1}(), lhs, j)
 
-	rpost2 = nothing
-	if rpost != nothing
-		rpost2 = for_statement(i, 1, m, code_block(
-			assignment(s, lhs_i),
-			rpost,
-			:(($lhs_i) = ($s))
-		) )
-	end
+# 	flatten_code_block( 
+# 		assignment(m, :(($siz)[1])),
+# 		assignment(n, :(($siz)[2])),
+# 		lhs_j_pre,
+# 		arg_pre,
+# 		for_statement( j, 1, n, flatten_code_block(
+# 			assignment(s, rempty),
+# 			for_statement( i, 1, m, code_block(
+# 				arg_calc,
+# 				rupdate
+# 			) ),
+# 			rpost,
+# 			:( ($lhs_j) = ($s) )
+# 		) )
+# 	)
+# end
 
-	flatten_code_block(  # row-wise
-		assignment(m, :(($siz)[1])),
-		assignment(n, :(($siz)[2])),
-		lhs_i_pre,
-		arg_pre,
-		assignment(j, 1),
-		for_statement( i, 1, m,  code_block(
-			arg_calc,
-			:( $(lhs_i) = ($rinit) )
-		)),
-		for_statement( j, 2, n, 
-			for_statement(i, 1, m, code_block(
-				arg_calc,
-				assignment(s, lhs_i),
-				rupdate,
-				:(($lhs_i) = ($s))
-			))
-		),
-		rpost2
-	)
 
-end
+# function compose_main(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign, info)
+# 	lhs = ex.lhs
+# 	rhs = ex.rhs
+# 	@assert length(rhs.args) == 1
+
+# 	siz, ty = info
+# 	@gensym m n i j s
+
+# 	(arg_pre, arg_calc, rempty, rinit, rupdate, rpost) = compose_reduc_core(
+# 		ctx, EWiseMode{2}(), rhs, ty, s, n, i, j)
+# 	lhs_i_pre, lhs_i = compose_lhs(ctx, EWiseMode{1}(), lhs, i)
+
+# 	rpost2 = nothing
+# 	if rpost != nothing
+# 		rpost2 = for_statement(i, 1, m, code_block(
+# 			assignment(s, lhs_i),
+# 			rpost,
+# 			:(($lhs_i) = ($s))
+# 		) )
+# 	end
+
+# 	flatten_code_block(  # row-wise
+# 		assignment(m, :(($siz)[1])),
+# 		assignment(n, :(($siz)[2])),
+# 		lhs_i_pre,
+# 		arg_pre,
+# 		assignment(j, 1),
+# 		for_statement( i, 1, m,  code_block(
+# 			arg_calc,
+# 			:( $(lhs_i) = ($rinit) )
+# 		)),
+# 		for_statement( j, 2, n, 
+# 			for_statement(i, 1, m, code_block(
+# 				arg_calc,
+# 				assignment(s, lhs_i),
+# 				rupdate,
+# 				:(($lhs_i) = ($s))
+# 			))
+# 		),
+# 		rpost2
+# 	)
+
+# end
 
 
 # Fast full reduction
 
-function compile_fast_reduc(ctx::ScalarContext, iex::TExpr, ex::TAssign)
-	if !(isa(ex.lhs, TSym) && isa(ex.rhs, TReduc))
-		throw(DeError("Invalid expression for fast_reduc."))
-	end
+# function compile_fast_reduc(ctx::ScalarContext, iex::TExpr, ex::TAssign)
+# 	if !(isa(ex.lhs, TSym) && isa(ex.rhs, TReduc))
+# 		throw(DeError("Invalid expression for fast_reduc."))
+# 	end
 
-	@gensym siz
-	ty = iex.host
+# 	@gensym siz
+# 	ty = iex.host
 
-	siz_infer, mode = if isa(iex, TRefScalar1)
-		:( ($siz) = ($(iex.i),) ), EWiseMode{1}()
-	elseif isa(iex, TRefScalar2)
-		:( ($siz) = ($(iex.i), $(iex.j)) ), EWiseMode{2}()
-	else
-		throw(DeError("Invalid size and type spec"))
-	end
+# 	siz_infer, mode = if isa(iex, TRefScalar1)
+# 		:( ($siz) = ($(iex.i),) ), EWiseMode{1}()
+# 	elseif isa(iex, TRefScalar2)
+# 		:( ($siz) = ($(iex.i), $(iex.j)) ), EWiseMode{2}()
+# 	else
+# 		throw(DeError("Invalid size and type spec"))
+# 	end
 
-	s = ex.lhs.e
-	main = compose_reduc_main(ctx, mode, ex.lhs, ex.rhs, (s, siz, ty))
-	flatten_code_block(siz_infer, main)
-end
+# 	s = ex.lhs.e
+# 	main = compose_reduc_main(ctx, mode, ex.lhs, ex.rhs, (s, siz, ty))
+# 	flatten_code_block(siz_infer, main)
+# end
 
-function compile_fast_reduc(ctx::ScalarContext, iex::Expr, ex::Expr)
-	compile_fast_reduc(ctx, texpr(iex), texpr(ex))
-end
+# function compile_fast_reduc(ctx::ScalarContext, iex::Expr, ex::Expr)
+# 	compile_fast_reduc(ctx, texpr(iex), texpr(ex))
+# end
 
 
 ##########################################################################
@@ -644,6 +691,10 @@ end
 # 	code-generating macros
 #
 ##########################################################################
+
+function dump_devec(ex::Expr)
+	println(compile(ScalarContext(), ex))
+end
 
 macro devec(assign_ex) 
 	esc(compile(ScalarContext(), assign_ex))
@@ -657,17 +708,17 @@ macro inspect_devec(assign_ex)
 	end
 end
 
-macro fast_reduc(info_ex, assign_ex)
-	esc(compile_fast_reduc(ScalarContext(), info_ex, assign_ex))
-end
+# macro fast_reduc(info_ex, assign_ex)
+# 	esc(compile_fast_reduc(ScalarContext(), info_ex, assign_ex))
+# end
 
-macro inspect_fast_reduc(info_ex, assign_ex)
-	let code__ = compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
-		println("$assign_ex ==>")
-		println(code__)
-		esc(code__)
-	end
-end
+# macro inspect_fast_reduc(info_ex, assign_ex)
+# 	let code__ = compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
+# 		println("$assign_ex ==>")
+# 		println(code__)
+# 		esc(code__)
+# 	end
+# end
 
 
 

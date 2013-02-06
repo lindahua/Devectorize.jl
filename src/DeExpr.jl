@@ -23,7 +23,13 @@ export
 	is_trivial_assignment, ju_expr,
 
 	tmode, ScalarMode, EWiseMode, ReducMode, 
-	ColwiseReducMode, RowwiseReducMode
+	ColwiseReducMode, RowwiseReducMode,
+
+	# scalar_backend
+
+	ScalarContext, dump_devec,
+	compile, @devec, @inspect_devec
+
 
 import Base.==, Base.!=
 
@@ -32,6 +38,6 @@ include("texpr.jl")
 include("meta_tools.jl")
 
 include("compile_base.jl")
-#include("scalar_backend.jl")
+include("scalar_backend.jl")
 
 end
