@@ -166,7 +166,7 @@ end
 
 # blending
 
-blend{T1, T2}(c::Bool, x::T1, x2::T2) = (c ? x : y)
+blend{T1, T2}(c::Bool, x::T1, y::T2) = (c ? x : y)
 
 get_op_kind(::TCallSig{:blend, 3}) = EWiseOp()
 result_type(::TFun{:blend}, ::Type{Bool}, T1::Type, T2::Type) = promote_type(T1, T2)

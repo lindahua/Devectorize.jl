@@ -20,11 +20,6 @@ get_value{T<:Number}(r::Array{T}, i::Int, j::Int) = r[i, j]
 get_value{T<:Number}(r::AbstractArray{T}, i::Int) = r[i]
 get_value{T<:Number}(r::AbstractArray{T}, i::Int, j::Int) = r[i, j]
 
-# result creation
-
-create_result(T::Type, ::()) = zero(T)
-create_result(T::Type, siz::(Int...,)) = Array(T, siz)
-
 
 ##########################################################################
 #
@@ -297,6 +292,42 @@ compose_rhs_kernel(ctx::ScalarContext, ex::TRef2D, h::Symbol,
 	i::Symbol, j::Symbol) = compose_lhs_kernel(ctx, ex, h, i, j)
 
 
+# TMap
+
+function setup_rhs(ctx::ScalarContext, ex::TMap)
+	
+	# setup arguments
+	
+	arg_setups = [setup_rhs(ctx, a) for a in ex.args]
+	
+	arg_inits = [s[1] for s in arg_setups]
+	arg_sizes = [s[2] for s in arg_setups]
+	arg_types = [s[3] for s in arg_setups]
+	arg_finals = [s[4] for s in arg_setups]
+	arg_infos = [s[5] for s in arg_setups]
+	
+	# integrate
+	
+	init = code_block(arg_inits...)
+	siz = ewise_size_inference(arg_sizes...)
+	ty = result_type_inference(ex.fun, arg_types...)
+	final = code_block(arg_finals...)
+	
+	(init, siz, ty, final, arg_infos)
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TMap, arg_infos, i::Symbol)
+	na = length(ex.args)
+	arg_kernels = [compose_rhs_kernel(ctx, ex.args[ia], arg_infos[ia], i) for ia in 1 : na]
+	fun_call(ex.fun, arg_kernels...)
+end
+
+function compose_rhs_kernel(ctx::ScalarContext, ex::TMap, arg_infos, i::Symbol, j::Symbol)
+	na = length(ex.args)
+	arg_kernels = [compose_rhs_kernel(ctx, ex.args[ia], arg_infos[ia], i, j) for ia in 1 : na]
+	fun_call(ex.fun, arg_kernels...)
+end
+
 
 # Full reduction
 
@@ -370,7 +401,7 @@ function compile(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
 		init_lhs = code_block(
 			assignment(siz, rhs_siz),
 			assignment(ty, rhs_ty),
-			assignment(lhs.name, fun_call(qname(:create_result), ty, siz))
+			assignment(lhs.name, fun_call(:Array, ty, siz))
 		)
 
 		lhs_pre = init_lhs
@@ -421,7 +452,7 @@ function compile(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign)
 		init_lhs = code_block(
 			assignment(siz, rhs_siz),
 			assignment(ty, rhs_ty),
-			assignment(lhs.name, fun_call(qname(:create_result), ty, siz))
+			assignment(lhs.name, fun_call(:Array, ty, siz))
 		)
 
 		lhs_pre = init_lhs

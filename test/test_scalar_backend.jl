@@ -34,37 +34,6 @@ abct = [at, bt, ct]
 
 #################################################
 #
-#	reference expressions
-#
-#################################################
-
-
-
-# 2D
-
-@devec r = abc[:,:]
-@test isequal(r, abc)
-
-r0 = r
-@devec r[:,:] = 1.
-@test isequal(r, fill(1., size(abc)))
-@test r === r0
-
-@devec r[:,:] = cv
-@test isequal(r, fill(cv, size(abc)))
-
-@devec r[:,:] = abc
-@test isequal(r, abc)
-@test r === r0
-
-i = 2
-j = 3
-@devec r[:,:] = abc[i,j]
-@test isequal(r, fill(c[2], size(abc)))
-
-
-#################################################
-#
 #	element-wise maps
 #
 #################################################

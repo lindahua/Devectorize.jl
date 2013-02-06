@@ -74,26 +74,6 @@ end
 #
 ##########################################################################
 
-# ewise_shape 
-
-ewise_shape(s) = s
-
-ewise_shape(::(), ::()) = ()
-ewise_shape(::(), s) = s
-ewise_shape(s, ::()) = s
-ewise_shape(s1, s2) = promote_shape(s1, s2)
-
-ewise_shape(::(), ::(), ::()) = ()
-ewise_shape(s1, ::(), ::()) = s1
-ewise_shape(::(), s2, ::()) = s2
-ewise_shape(::(), ::(), s3) = s3
-ewise_shape(s1, s2, ::()) = promote_shape(s1, s2)
-ewise_shape(s1, ::(), s3) = promote_shape(s1, s3)
-ewise_shape(::(), s2, s3) = promote_shape(s2, s3)
-ewise_shape(s1, s2, s3) = promote_shape(promote_shape(s1, s2), s3)
-
-ewise_shape(s1, s2, s3, s4...) = promote_shape(ewise_shape(s1, s2), ewise_shape(s3, s4...))
-
 # helper for returning 2D size
 
 to_size2d(s::Int) = (s, 1)
@@ -190,6 +170,35 @@ function mat_size_inference(s::Symbol, rrgn::TInterval, crgn::TInterval)
 end
 
 
+# ewise_shape 
+
+ewise_shape(s) = s
+
+ewise_shape(::(), ::()) = ()
+ewise_shape(::(), s) = s
+ewise_shape(s, ::()) = s
+ewise_shape(s1, s2) = promote_shape(s1, s2)
+
+ewise_shape(::(), ::(), ::()) = ()
+ewise_shape(s1, ::(), ::()) = s1
+ewise_shape(::(), s2, ::()) = s2
+ewise_shape(::(), ::(), s3) = s3
+ewise_shape(s1, s2, ::()) = promote_shape(s1, s2)
+ewise_shape(s1, ::(), s3) = promote_shape(s1, s3)
+ewise_shape(::(), s2, s3) = promote_shape(s2, s3)
+ewise_shape(s1, s2, s3) = promote_shape(promote_shape(s1, s2), s3)
+
+ewise_shape(s1, s2, s3, s4...) = promote_shape(ewise_shape(s1, s2), ewise_shape(s3, s4...))
+
+function ewise_size_inference(a1_siz::Expr)
+	a1_siz
+end
+
+function ewise_size_inference(a1_siz::Expr, other_sizs::Expr...)
+	fun_call(qname(:ewise_shape), a1_siz, other_sizs...)
+end
+
+
 ##########################################################################
 #
 # 	type inference
@@ -202,12 +211,9 @@ type_inference(ex::TScalarVar) = :( typeof($(ex.name)) )
 type_inference(ex::TRef) = :( eltype($(ex.host)) )
 type_inference(ex::TAssign) = :( $(type_inference(ex.rhs)) )
 
-function type_inference(ex::TFunCall) 
-
-	tf = TFun{ex.fun}()
-	argty_exprs = [type_inference(a) for a in ex.args]
-
-	fun_call(qname(:result_type), tf, argty_exprs...) 
+function result_type_inference(f::Symbol, arg_tys::Expr...) 
+	tf = TFun{f}()
+	fun_call(qname(:result_type), tf, arg_tys...) 
 end
 
 
