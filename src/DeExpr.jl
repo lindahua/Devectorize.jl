@@ -41,7 +41,8 @@ export
 	@devec,
 	@inspect_devec,
 	@fast_reduc,
-	@inspect_fast_reduc
+	@inspect_fast_reduc,
+	@devec_transform
 
 	
 include("fun_traits.jl")
