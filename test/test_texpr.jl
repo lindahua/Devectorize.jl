@@ -15,18 +15,23 @@ ex = texpr(1.5)
 @test isa(ex, TNum{Float64})
 @test ex.val == 1.5
 @test ex == tnum(1.5)
+@test eval(ju_expr(ex)) == 1.5
 
 # tvar & tscalarvar
+
+a = 12.5
 
 ex = texpr(:a)
 @test isa(ex, TVar)
 @test ex.name == :a
 @test ex == tvar(:a)
+@test eval(ju_expr(ex)) == a
 
 ex = tscalarvar(:a)
 @test isa(ex, TScalarVar)
 @test ex.name == :a
 @test ex == tscalarvar(:a)
+@test eval(ju_expr(ex)) == a
 
 # tqvar
 
@@ -35,10 +40,23 @@ ex = texpr(:(a.b))
 @test ex.form == :(a.b)
 @test ex == tqvar(:(a.b))
 
+type A1
+	b
+end
+a = A1(2.3)
+@test eval(ju_expr(ex)) == a.b
+
+
 ex = texpr(:(a.b.c))
 @test isa(ex, TQVar)
 @test ex.form == :(a.b.c)
 @test ex == tqvar(:(a.b.c))
+
+type A2
+	c
+end
+a = A1(A2(4.5))
+@test eval(ju_expr(ex)) == a.b.c
 
 
 ###########################################################
@@ -47,23 +65,22 @@ ex = texpr(:(a.b.c))
 #
 ###########################################################
 
+a = [10 20 30; 40 50 60]
+
 ex = texpr(:(a[1]))
 @test isa(ex, TGeneralRef1)
 @test ex.host == tvar(:a)
 @test ex.i == 1
 @test ex == tref(:(a[1]))
+@test eval(ju_expr(ex)) == a[1] 
 
 ex = texpr(:(a[x]))
 @test isa(ex, TGeneralRef1)
 @test ex.host == tvar(:a)
 @test ex.i == :x
 @test ex == tref(:(a[x]))
-
-ex = texpr(:(a["s"]))
-@test isa(ex, TGeneralRef1)
-@test ex.host == tvar(:a)
-@test ex.i == "s"
-@test ex == tref(:(a["s"]))
+x = 2
+@test eval(ju_expr(ex)) == a[x]
 
 ex = texpr(:(a[1,2]))
 @test isa(ex, TGeneralRef2)
@@ -71,13 +88,7 @@ ex = texpr(:(a[1,2]))
 @test ex.i == 1
 @test ex.j == 2
 @test ex == tref(:(a[1,2]))
-
-ex = texpr(:(a["s", "t"]))
-@test isa(ex, TGeneralRef2)
-@test ex.host == tvar(:a)
-@test ex.i == "s"
-@test ex.j == "t"
-@test ex == tref(:(a["s", "t"]))
+@test eval(ju_expr(ex)) == a[1,2]
 
 ex = texpr(:(a[x,2]))
 @test isa(ex, TGeneralRef2)
@@ -85,6 +96,7 @@ ex = texpr(:(a[x,2]))
 @test ex.i == :x
 @test ex.j == 2
 @test ex == tref(:(a[x,2]))
+@test eval(ju_expr(ex)) == a[x,2]
 
 ex = texpr(:(a[1,y]))
 @test isa(ex, TGeneralRef2)
@@ -92,6 +104,8 @@ ex = texpr(:(a[1,y]))
 @test ex.i == 1
 @test ex.j == :y
 @test ex == tref(:(a[1,y]))
+y = 3
+@test eval(ju_expr(ex)) == a[1,y]
 
 ex = texpr(:(a[x,y]))
 @test isa(ex, TGeneralRef2)
@@ -99,12 +113,16 @@ ex = texpr(:(a[x,y]))
 @test ex.i == :x
 @test ex.j == :y
 @test ex == tref(:(a[x,y]))
+@test eval(ju_expr(ex)) == a[x,y]
+
+a = A1(a)
 
 ex = texpr(:(a.b[2]))
 @test isa(ex, TGeneralRef1)
 @test ex.host == tqvar(:(a.b))
 @test ex.i == 2
 @test ex == tref(:(a.b[2]))
+@test eval(ju_expr(ex)) == a.b[2]
 
 ex = texpr(:(a.b[2,3]))
 @test isa(ex, TGeneralRef2)
@@ -112,6 +130,23 @@ ex = texpr(:(a.b[2,3]))
 @test ex.i == 2
 @test ex.j == 3
 @test ex == tref(:(a.b[2,3]))
+@test eval(ju_expr(ex)) == a.b[2,3]
+
+a = {"s" => 100}
+
+ex = texpr(:(a["s"]))
+@test isa(ex, TGeneralRef1)
+@test ex.host == tvar(:a)
+@test ex.i == "s"
+@test ex == tref(:(a["s"]))
+@test eval(ju_expr(ex)) == a["s"]
+
+ex = texpr(:(a["s", "t"]))
+@test isa(ex, TGeneralRef2)
+@test ex.host == tvar(:a)
+@test ex.i == "s"
+@test ex.j == "t"
+@test ex == tref(:(a["s", "t"]))
 
 
 ###########################################################

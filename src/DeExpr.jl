@@ -20,7 +20,7 @@ export
 
 	texpr, tnum, tscalarvar, tvar, tqvar,
 	tref, tcall, tassign, topassign, tblock,
-	is_trivial_assignment, 
+	is_trivial_assignment, ju_expr,
 
 	tmode, ScalarMode, EWiseMode, ReducMode, 
 	ColwiseReducMode, RowwiseReducMode
@@ -31,7 +31,7 @@ include("fun_traits.jl")
 include("texpr.jl")
 #include("meta_tools.jl")
 
-#include("compile_base.jl")
+include("compile_base.jl")
 #include("scalar_backend.jl")
 
 end

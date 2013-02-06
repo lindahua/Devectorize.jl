@@ -18,10 +18,10 @@
 
 abstract EvalContext
 
-# direct context: directly evaluate the context in CPU
+# direct context: directly evaluate the expressions in CPU
 abstract DirectContext <: EvalContext
 
-# managed context: transfer the computation to a specific device (e.g. GPU)
+# offshore context: transfer the computation to a specific device (e.g. GPU)
 abstract OffshoreContext <: EvalContext
 
 ##########################################################################
@@ -31,10 +31,10 @@ abstract OffshoreContext <: EvalContext
 ##########################################################################
 
 function compile(ctx::EvalContext, top_expr::Expr)
-	# generate codes for cases where lhs is pre-allocated in correct size and type
+	# generate codes given an expression
 
 	h = top_expr.head
-	if h == :(=) || h == :(+=) || h == :(-=) || h == :(.*=) || h == :(./=) || h == :(block)
+	if h == :(=) || is_opassign(h) || h == :(block)
 		te = texpr(top_expr)
 		compile(ctx, te)
 	elseif h == :(*=)
@@ -72,22 +72,21 @@ function compile(ctx::EvalContext, top_expr::TAssign)
 		lhs = top_expr.lhs
 		rhs = top_expr.rhs
 
-		if isa(lhs, TSym)
-			if isa(rhs, TSym)
-				# trivial assignment (no need to compile)
-				code_block( assignment(lhs.e, rhs.e) )
-			else
-				# to ensure no alias between left and right hand side
-				tmp = gensym("tmp")
-				emode = top_expr.mode
-				safe_expr = TAssign(TSym(tmp), rhs, emode)
-				flatten_code_block(
-					code_block(compile(ctx, emode, safe_expr)),
-					assignment(lhs.e, tmp) )
-			end
-		else
-			compile(ctx, top_expr.mode, top_expr)
-		end		
+		if is_trivial_assignment(top_expr)
+			code_block( assignment(ju_expr(lhs), ju_expr(rhs)) )
+
+		elseif isa(lhs, TGeneralVar)
+			# to ensure no alias between left and right hand side
+			tmp = gensym("tmp")
+			emode = top_expr.mode
+			safe_expr = TAssign(tvar(tmp), rhs, emode)
+			flatten_code_block(
+				code_block(compile(ctx, emode, safe_expr)),
+				assignment(ju_expr(lhs), tmp) )
+
+		else 
+			compile(ctx, tmode(top_expr), top_expr)
+		end	
 	else
 		push!(dep_queue, top_expr)
 		codes = [compile(ctx, tmode(e), e) for e in dep_queue]

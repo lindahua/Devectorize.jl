@@ -35,6 +35,7 @@ type TEmpty <: TExpr end
 type TNum{T<:Number} <: TScalar
 	val::T
 end
+ju_expr(tx::TNum) = tx.val
 
 == (a::TNum, b::TNum) = (a.val == b.val)
 != (a::TNum, b::TNum) = !(a == b)
@@ -42,6 +43,7 @@ end
 type TScalarVar <: TScalar
 	name::Symbol
 end
+ju_expr(tx::TScalarVar) = tx.name
 
 == (a::TScalarVar, b::TScalarVar) = (a.name == b.name)
 != (a::TScalarVar, b::TScalarVar) = !(a == b)
@@ -49,6 +51,7 @@ end
 type TVar <: TGeneralVar
 	name::Symbol
 end
+ju_expr(tx::TVar) = tx.name
 
 == (a::TVar, b::TVar) = (a.name == b.name)
 != (a::TVar, b::TVar) = !(a == b)
@@ -57,6 +60,7 @@ end
 type TQVar <: TGeneralVar
 	form::Expr
 end
+ju_expr(tx::TQVar) = tx.form
 
 == (a::TQVar, b::TQVar) = (a.form == b.form)
 != (a::TQVar, b::TQVar) = !(a == b)
@@ -82,6 +86,7 @@ type TGeneralRef1 <: TGeneralVar
 	host::TGeneralVar
 	i::Any
 end
+ju_expr(tx::TGeneralRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
 
 == (a::TGeneralRef1, b::TGeneralRef1) = (a.host == b.host) && (a.i == b.i)
 != (a::TGeneralRef1, b::TGeneralRef1) = !(a == b)
@@ -91,6 +96,7 @@ type TGeneralRef2 <: TGeneralVar
 	i::Any
 	j::Any
 end
+ju_expr(tx::TGeneralRef2) = :( $(ju_expr(tx.host))[$(tx.i), $(tx.j)] )
 
 == (a::TGeneralRef2, b::TGeneralRef2) = (a.host == b.host) && (a.i == b.i) && (a.j == b.j)
 != (a::TGeneralRef2, b::TGeneralRef2) = !(a == b)
