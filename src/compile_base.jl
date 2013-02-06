@@ -63,9 +63,6 @@ function add_deps_to_queue(q::Array{TExpr, 1}, ex::TExpr)
 	end
 end
 
-
-preferred_mode(ex::TAssign) = isa(ex.mode, EWiseMode{0}) ? EWiseMode{1}() : ex.mode
-
 function compile(ctx::EvalContext, top_expr::TAssign)
 	dep_queue = TExpr[]
 	add_deps_to_queue(dep_queue, top_expr)
@@ -82,15 +79,15 @@ function compile(ctx::EvalContext, top_expr::TAssign)
 			tmp = gensym("tmp")
 			safe_expr = tassign(tvar(tmp), rhs)
 			flatten_code_block(
-				code_block(compile(ctx, preferred_mode(safe_expr), safe_expr)),
+				code_block(compile(ctx, tmode(safe_expr), safe_expr)),
 				assignment(ju_expr(lhs), tmp) )
 
 		else 
-			compile(ctx, preferred_mode(top_expr), top_expr)
+			compile(ctx, tmode(top_expr), top_expr)
 		end	
 	else
 		push!(dep_queue, top_expr)
-		codes = [compile(ctx, preferred_mode(e), e) for e in dep_queue]
+		codes = [compile(ctx, tmode(e), e) for e in dep_queue]
 		code_block(codes...)
 	end
 end

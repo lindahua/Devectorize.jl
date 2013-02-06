@@ -189,6 +189,16 @@ end
 @test_te dot(a + b, c .* d) 	TReduc  ReducMode()
 
 
+# scalar expressions
+
+@test_te scalar(x) 			TScalarVar 		ScalarMode()
+@test_te scalar(x[1])		TGeneralScalar 	ScalarMode()
+@test_te scalar(x[i,j]) 	TGeneralScalar 	ScalarMode()
+@test_te scalar(1) 			TNum 			ScalarMode()
+@test_te scalar(sin(1)) 	TGeneralScalar 	ScalarMode()
+@test_te scalar(a.b) 		TGeneralScalar 	ScalarMode()
+@test_te scalar(a.b.c) 		TGeneralScalar 	ScalarMode()
+
 # assignment expressions
 
 @test_te a = 1 			TAssign{TVar, TNum{Int}} 	ScalarMode()

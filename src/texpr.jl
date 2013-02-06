@@ -45,6 +45,8 @@ type TScalarVar <: TScalar
 end
 ju_expr(tx::TScalarVar) = tx.name
 
+scalar(x::Number) = x
+
 == (a::TScalarVar, b::TScalarVar) = (a.name == b.name)
 != (a::TScalarVar, b::TScalarVar) = !(a == b)
 
@@ -65,6 +67,16 @@ ju_expr(tx::TQVar) = tx.form
 == (a::TQVar, b::TQVar) = (a.form == b.form)
 != (a::TQVar, b::TQVar) = !(a == b)
 
+type TGeneralScalar <: TScalar
+	form::Expr
+end
+ju_expr(tx::TGeneralScalar) = tx.form
+
+as_scalar(a::TScalar) = a
+as_scalar(a::TVar) = TScalarVar(a.name)
+as_scalar(a::TQVar) = TGeneralScalar(a.form)
+as_scalar(a::TGeneralVar) = TGeneralScalar(ju_expr(a))
+as_scalar(a::TExpr) = throw(DeError("Expression of type $(typeof(a)) can not be tagged as scalar."))
 
 # references
 
@@ -144,6 +156,12 @@ type TMap <: TEWise
 	mode::TMode
 	deps::Union(Array{TExpr}, Nothing)
 end
+
+function ju_expr(tx::TMap)
+	ju_args = [ju_expr(a) for a in tx.args]
+	expr(:call, tx.fun, ju_args...)
+end
+as_scalar(tx::TMap) = TGeneralScalar(ju_expr(tx))
 
 type TReduc <: TExpr
 	fun::Symbol
@@ -434,7 +452,11 @@ end
 
 function tcall(f::Symbol, args)
 	n = length(args)
-	if is_ewise_call(f, n)
+	
+	if f == (:scalar) && n == 1
+		as_scalar(args[1])
+		
+	elseif is_ewise_call(f, n)
 		fargs, deps = check_funcall_args(args...)
 		mode = promote_ewise_tmode([tmode(a) for a in fargs]...)
 		TMap(f, fargs, mode, deps)

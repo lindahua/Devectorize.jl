@@ -28,15 +28,31 @@ abc = [a b c]
 @devec r = -a
 @test isequal(r, -a)
 
+r[:] = 0.
+@devec r[:] = -a
+@test isequal(r, -a)
+
 # binary
 
 @devec r = a + b
 @test isequal(r, a + b)
 
+r[:] = 0.
+@devec r[:] = a + b
+@test isequal(r, a + b)
+
 @devec r = a + 1.
 @test isequal(r, a + 1.)
 
+r[:] = 0.
+@devec r[:] = a + 1.
+@test isequal(r, a + 1.)
+
 @devec r = 1. + b
+@test isequal(r, 1. + b)
+
+r[:] = 0.
+@devec r[:] = 1. + b
 @test isequal(r, 1. + b)
 
 @devec r[:] = 1. + 2.
@@ -47,22 +63,50 @@ abc = [a b c]
 @devec r = +(a, b, c)
 @test isequal(r, a + b + c)
 
+r[:] = 0.
+@devec r[:] = +(a, b, c)
+@test isequal(r, a + b + c)
+
 @devec r = +(1., b, c)
+@test isequal(r, 1. + b + c)
+
+r[:] = 0.
+@devec r[:] = +(1., b, c)
 @test isequal(r, 1. + b + c)
 
 @devec r = +(a, 2., c)
 @test isequal(r, a + 2. + c)
 
+r[:] = 0.
+@devec r[:] = +(a, 2., c)
+@test isequal(r, a + 2. + c)
+
 @devec r = +(a, b, 3.)
+@test isequal(r, a + b + 3.)
+
+r[:] = 0.
+@devec r[:] = +(a, b, 3.)
 @test isequal(r, a + b + 3.)
 
 @devec r = +(1., 2., c)
 @test isequal(r, 1. + 2. + c)
 
+r[:] = 0.
+@devec r[:] = +(1., 2., c)
+@test isequal(r, 1. + 2. + c)
+
 @devec r = +(1., b, 3.)
 @test isequal(r, 1. + b + 3.)
 
+r[:] = 0.
+@devec r[:] = +(1., b, 3.)
+@test isequal(r, 1. + b + 3.)
+
 @devec r = +(a, 2., 3.)
+@test isequal(r, a + 2. + 3.)
+
+r[:] = 0.
+@devec r[:] = +(a, 2., 3.)
 @test isequal(r, a + 2. + 3.)
 
 @devec r[:] = +(1., 2., 3.)
@@ -74,7 +118,15 @@ abc = [a b c]
 @devec r = blend(a + 2 .>= b, a + 2, b)
 @test isequal(r, max(a+2, b))
 
+r[:] = 0.
+@devec r[:] = blend(a + 2 .>= b, a + 2, b)
+@test isequal(r, max(a+2, b))
+
 @devec r = blend(a + 2 .<= b, a + 2, b)
+@test isequal(r, min(a + 2, b)) 
+
+r[:] = 0.
+@devec r[:] = blend(a + 2 .<= b, a + 2, b)
 @test isequal(r, min(a + 2, b)) 
 
 

@@ -379,6 +379,54 @@ end
 #
 ##########################################################################
 
+# Scalar mode (the result is sured to be a scalar)
+
+function compile(ctx::ScalarContext, mode::ScalarMode, ex::TAssign)
+	lhs = ex.lhs
+	rhs = ex.rhs
+	@assert isa(lhs, TVar) || isa(lhs, TScalarVar)
+	assignment(lhs.name, ju_expr(rhs))
+end
+
+
+# Element-wise (1D or Scalar)
+
+function compile(ctx::ScalarContext, mode::EWiseMode{0}, ex::TAssign)
+	
+	lhs = ex.lhs
+	rhs = ex.rhs
+
+	# lhs must be TVar, otherwise mode would be either EWiseMode{0} or EWiseMode{1}
+	@assert isa(lhs, TVar)
+
+	# setup rhs
+
+	(rhs_init, rhs_siz, rhs_ty, rhs_final, rhs_info) = setup_rhs(ctx, rhs)
+	
+	@gensym siz ty len i
+	kernel = compose_kernel(ctx, ex, nothing, rhs_info, i)
+	
+	# integrate
+
+	flatten_code_block(
+		rhs_init,
+		assignment(siz, rhs_siz),
+		if_statement( :($siz == ()),  
+			code_block( # scalar
+				assignment(lhs.name, ju_expr(rhs))
+			),
+			flatten_code_block( # ewise 1D
+				assignment(ty, rhs_ty),
+				assignment(lhs.name, fun_call(:Array, ty, siz)),
+				assignment(len, fun_call(:length, lhs.name)),
+				for_statement(i, 1, len, kernel),
+				rhs_final
+			)
+		)
+	)
+end
+
+
 # Element-wise 1D
 
 function compile(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)

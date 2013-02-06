@@ -12,7 +12,7 @@ export
 	DeError,
 
 	TExpr, TEWise, TScalar, TGeneralVar, TFunCall,
-	TEmpty, TNum, TScalarVar, TVar, TQVar,
+	TEmpty, TNum, TScalarVar, TVar, TQVar, TGeneralScalar, 
 	TRef, TIndex, TRange, TColon, TInterval,
 	TGeneralRef1, TGeneralRef2, TRef1D, TRef2D, TRefRow, TRefCol,
 	TMap, TReduc, TColwiseReduc, TRowwiseReduc,
