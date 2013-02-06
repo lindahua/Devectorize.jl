@@ -23,6 +23,8 @@ is_opassign(::TFun{:-=}) = true
 is_opassign(::TFun{:.*=}) = true
 is_opassign(::TFun{:./=}) = true
 
+is_opassign(f::Symbol) = is_opassign(TFun{f}())
+
 extract_assign_op(::TFun{:+=}) = (:+)
 extract_assign_op(::TFun{:-=}) = (:-)
 extract_assign_op(::TFun{:.*=}) = (:.*)

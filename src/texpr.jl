@@ -520,7 +520,7 @@ end
 
 
 function topassign(aop::Symbol, lhs::TExpr, rhs::TExpr)
-	op = extract_assign_op(aop)
+	op = extract_assign_op(TFun{aop}())
 	new_rhs = tcall(op, [lhs, rhs])
 	tassign(lhs, new_rhs)
 end
@@ -536,7 +536,7 @@ function tassign(ex::Expr)
 end
 
 function topassign(ex::Expr)
-	topassign(ex.head, texpr(lhs), texpr(rhs))
+	topassign(ex.head, texpr(ex.args[1]), texpr(ex.args[2]))
 end
 
 
@@ -552,11 +552,11 @@ function tblock(blk_ex::Expr)
 	@assert blk_ex.head == :(block)
 
 	blk = TBlock()
-	for e in ex.args
+	for e in blk_ex.args
 		if isa(e, LineNumberNode) || e.head == (:line)
 			continue
 		end
-		if !(e.head == :(=) || ex.head == :(block))
+		if !(e.head == :(=) || is_opassign(e.head) || e.head == :(block))
 			throw(DeError("Each statement in a block must be an assignment or a nested block"))
 		end
 		push!(blk.stmts, texpr(e))
@@ -585,7 +585,7 @@ texpr(ex::Expr) =
 	ex.head == :(=) ? tassign(ex) :
 	ex.head == :(block) ? tblock(ex) :
 	is_empty_tuple(ex) ? TEmpty() :
-	is_opassign(TFun{ex.head}()) ? topassign(ex) :
+	is_opassign(ex.head) ? topassign(ex) :
 	throw(DeError("Unrecognized expression: $ex"))
 
 
