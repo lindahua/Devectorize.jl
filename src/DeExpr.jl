@@ -20,7 +20,10 @@ export
 
 	texpr, tnum, tscalarvar, tvar, tqvar,
 	tref, tcall, tassign, topassign, tblock,
-	is_trivial_assignment
+	is_trivial_assignment, 
+
+	tmode, ScalarMode, EWiseMode, ReducMode, 
+	ColwiseReducMode, RowwiseReducMode
 
 import Base.==, Base.!=
 

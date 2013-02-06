@@ -276,7 +276,9 @@ function is_valid_tqvar(ex::Expr)
 	a2 = ex.args[2]
 
 	(isa(a1, Symbol) || is_valid_tqvar(a1)) &&
-	a2.head == (:quote) && isa(a2.args[1], Symbol)
+	( 	isa(a2, QuoteNode) || 
+		(a2.head == (:quote) && isa(a2.args[1], Symbol))
+	)
 end
 
 function tqvar(ex::Expr) 
