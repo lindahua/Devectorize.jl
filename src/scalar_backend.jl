@@ -331,45 +331,45 @@ end
 
 # Full reduction
 
-# function reduc_computation(f::TFun{:(sum)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-# 	empty_val = :( zero($ty) )
-# 	init_val = :( $(xs[1]) )
-# 	updater = :( $s += $(xs[1]) )
-# 	post = nothing
-# 	(empty_val, init_val, updater, post)
-# end
+function reduc_computation(f::TFun{:(sum)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( zero($ty) )
+	init_val = :( $(xs[1]) )
+	updater = :( $s += $(xs[1]) )
+	post = nothing
+	(empty_val, init_val, updater, post)
+end
 
-# function reduc_computation(f::TFun{:(max)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-# 	empty_val = :( typemin($ty) )
-# 	init_val = :( $(xs[1]) )
-# 	updater = :( $s = max($s, $(xs[1])) )
-# 	post = nothing
-# 	(empty_val, init_val, updater, post)
-# end
+function reduc_computation(f::TFun{:(max)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( typemin($ty) )
+	init_val = :( $(xs[1]) )
+	updater = :( $s = max($s, $(xs[1])) )
+	post = nothing
+	(empty_val, init_val, updater, post)
+end
 
-# function reduc_computation(f::TFun{:(min)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-# 	empty_val = :( typemax($ty) )
-# 	init_val = :( $(xs[1]) )
-# 	updater = :( $s = min($s, $(xs[1])) )
-# 	post = nothing
-# 	(empty_val, init_val, updater, post)
-# end
+function reduc_computation(f::TFun{:(min)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( typemax($ty) )
+	init_val = :( $(xs[1]) )
+	updater = :( $s = min($s, $(xs[1])) )
+	post = nothing
+	(empty_val, init_val, updater, post)
+end
 
-# function reduc_computation(f::TFun{:(mean)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-# 	empty_val = :( zero($ty) )
-# 	init_val = :( $(xs[1]) )
-# 	updater = :( $s += $(xs[1]) )
-# 	post = :( $s /= $n )
-# 	(empty_val, init_val, updater, post)
-# end
+function reduc_computation(f::TFun{:(mean)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( zero($ty) )
+	init_val = :( $(xs[1]) )
+	updater = :( $s += $(xs[1]) )
+	post = :( $s /= $n )
+	(empty_val, init_val, updater, post)
+end
 
-# function reduc_computation(f::TFun{:(dot)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
-# 	empty_val = :( zero($ty) )
-# 	init_val = :( $(xs[1]) * $(xs[2]) )
-# 	updater = :( $s += $(xs[1]) * $(xs[2]) )
-# 	post = nothing
-# 	(empty_val, init_val, updater, post)
-# end
+function reduc_computation(f::TFun{:(dot)}, ty::Symbol, s::Symbol, n::Symbol, xs::Symbol...)
+	empty_val = :( zero($ty) )
+	init_val = :( $(xs[1]) * $(xs[2]) )
+	updater = :( $s += $(xs[1]) * $(xs[2]) )
+	post = nothing
+	(empty_val, init_val, updater, post)
+end
 
 
 

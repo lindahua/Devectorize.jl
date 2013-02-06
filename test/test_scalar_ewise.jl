@@ -101,6 +101,7 @@ s = S(a, b, c)
 @devec r = +(s.a, s.b, s.c)
 @test isequal(r, s.a + s.b + s.c)
 
+
 #################################################
 #
 #	interaction with references
@@ -125,4 +126,29 @@ rr = zeros(size(r))
 @devec r[:,2:3] = abc[:, 1:2] + cv
 rr[:,2:3] = abc[:, 1:2] + cv
 @test isequal(r, rr)
+
+
+#################################################
+#
+#	op-assignment
+#
+#################################################
+
+r = a
+@devec r += b
+@test isequal(r, a + b)
+
+r0 = r
+@devec r[:] += c
+@test r === r0
+@test isequal(r, a + b + c)
+
+r = a
+@devec r .*= 2.
+@test isequal(r, a * 2)
+
+@devec r -= (c + 3)
+@test isequal(r, a * 2 - (c + 3))
+
+
 
