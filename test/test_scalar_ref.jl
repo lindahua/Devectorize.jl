@@ -642,3 +642,186 @@ rr = zeros(size(B))
 rr[2:5,u:v] = B[2:5,u:v]
 @test isequal(r, rr)
 
+
+###########################################################
+#
+#	Interactions of different kinds
+#
+#	LHS: Ref1D, RefCol, RelRow, Ref2D
+#   RHS: Var, Scalar, Ref1D, RefCol, RefRow, Ref2D
+#
+###########################################################
+
+# LHS is Ref1D
+
+r = zeros(size(a))
+@devec r[:] = a
+@test isequal(r, a)
+
+r = zeros(size(a))
+@devec r[:] = cv
+@test isequal(r, fill(cv, size(a)))
+
+r = zeros(size(a))
+@devec r[:] = a[:]
+@test isequal(r, a)
+
+r = zeros(size(a))
+@devec r[:] = abc[:,2]
+@test isequal(r, b)
+
+r = zeros(size(a))
+@devec r[:] = abct[2,:]
+@test isequal(r, b)
+
+# LHS is sub-range of Ref1D
+
+m = 10
+
+r = zeros(m)
+rr = zeros(m)
+@devec r[2:9] = a
+rr[2:9] = a
+@test isequal(r, rr)
+
+r = zeros(m)
+rr = zeros(m)
+@devec r[2:9] = cv
+rr[2:9] = cv
+@test isequal(r, rr)
+
+r = zeros(m)
+rr = zeros(m)
+@devec r[2:9] = a[:]
+rr[2:9] = a[:]
+@test isequal(r, rr)
+
+r = zeros(m)
+rr = zeros(m)
+@devec r[2:9] = abc[:,2]
+rr[2:9] = abc[:,2]
+@test isequal(r, rr)
+
+r = zeros(m)
+rr = zeros(m)
+@devec r[2:9] = abct[2,:]
+rr[2:9] = abct[2,:]
+@test isequal(r, rr)
+
+# LHS is RefCol
+
+r = zeros(size(abc))
+rr = zeros(size(abc))
+@devec r[:,2] = a
+rr[:,2] = a
+@test isequal(r, rr)
+
+r = zeros(size(abc))
+rr = zeros(size(abc))
+@devec r[:,2] = cv
+rr[:,2] = cv
+@test isequal(r, rr)
+
+r = zeros(size(abc))
+rr = zeros(size(abc))
+@devec r[:,2] = a[:]
+rr[:,2] = a[:]
+@test isequal(r, rr)
+
+r = zeros(size(abc))
+rr = zeros(size(abc))
+@devec r[:,2] = abc[:,2]
+rr[:,2] = abc[:,2]
+@test isequal(r, rr)
+
+r = zeros(size(abc))
+rr = zeros(size(abc))
+@devec r[:,2] = abct[2,:]
+rr[:,2] = abct[2,:]
+@test isequal(r, rr)
+
+# LHS is RefRow
+
+r = zeros(size(abct))
+rr = zeros(size(abct))
+@devec r[2,:] = a
+rr[2,:] = a
+@test isequal(r, rr)
+
+r = zeros(size(abct))
+rr = zeros(size(abct))
+@devec r[2,:] = cv
+rr[2,:] = cv
+@test isequal(r, rr)
+
+r = zeros(size(abct))
+rr = zeros(size(abct))
+@devec r[2,:] = a[:]
+rr[2,:] = a[:]
+@test isequal(r, rr)
+
+r = zeros(size(abct))
+rr = zeros(size(abct))
+@devec r[2,:] = abc[:,2]
+rr[2,:] = abc[:,2]
+@test isequal(r, rr)
+
+r = zeros(size(abct))
+rr = zeros(size(abct))
+@devec r[2,:] = abct[2,:]
+rr[2,:] = abct[2,:]
+@test isequal(r, rr)
+
+# LHS is Ref2D
+
+r = zeros(size(abc))
+@devec r[:,:] = abc
+@test isequal(r, abc)
+
+r = zeros(size(abc))
+@devec r[:,:] = cv
+@test isequal(r, fill(cv, size(abc)))
+
+r = zeros(size(abc))
+@devec r[:,:] = abc[:,:]
+@test isequal(r, abc)
+
+# LHS is a subrange of Ref2D
+
+m = 12
+n = 5
+
+r = zeros(m, n)
+rr = zeros(m, n)
+@devec r[3:10, 2:4] = abc
+rr[3:10, 2:4] = abc
+@test isequal(r, rr)
+
+r = zeros(m, n)
+rr = zeros(m, n)
+@devec r[3:10, 2:4] = cv
+rr[3:10, 2:4] = cv
+@test isequal(r, rr)
+
+r = zeros(m, n)
+rr = zeros(m, n)
+@devec r[3:10, 2:4] = abc[:,:]
+rr[3:10, 2:4] = abc[:,:]
+@test isequal(r, rr)
+
+# using qualified names
+
+ax = X(a)
+@devec r = ax.x[:]
+@test isequal(r, a)
+
+r = X(0)
+@devec r.x = abc[:,:]
+@test isequal(r.x, abc)
+
+r = X(0)
+abcx = X(abc)
+@devec r.x = abcx.x[:,2]
+@test isequal(r.x, b)
+
+
