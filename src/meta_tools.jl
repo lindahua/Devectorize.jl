@@ -173,6 +173,22 @@ function mat_size_inference(s::Symbol, rrgn::TColon, crgn::TColon)
 	fun_call(qname(:to_size2d), fun_call(:size, s))
 end
 
+function mat_size_inference(s::Symbol, rrgn::TColon, crgn::TInterval)
+	bn = :( size($s, 2) )
+	:( (size($s, 1), $(length_inference_(bn, crgn))) )
+end
+
+function mat_size_inference(s::Symbol, rrgn::TInterval, crgn::TColon)
+	bm = :( size($s, 1) )
+	:( ($(length_inference_(bm, rrgn)), size($s, 2)) )
+end
+
+function mat_size_inference(s::Symbol, rrgn::TInterval, crgn::TInterval)
+	bm = :( size($s, 1) )
+	bn = :( size($s, 2) )
+	:( ($(length_inference_(bm, rrgn)), $(length_inference_(bn, crgn))) )
+end
+
 
 ##########################################################################
 #

@@ -474,5 +474,171 @@ rr[i,u:v] = bt[2:5]
 @test isequal(r, rr)
 
 
+###########################################################
+#
+#	2D references
+#
+###########################################################
 
+B = reshape(linspace(1., 64., 64), 8, 8)
+
+# 2D ref on RHS
+
+u = 3
+v = 7
+
+@devec r = B[:,:]
+@test isequal(r, B[:,:])
+
+@devec r = B[:,2:]
+@test isequal(r, B[:,2:])
+
+@devec r = B[:,2:5]
+@test isequal(r, B[:,2:5])
+
+@devec r = B[u:,:]
+@test isequal(r, B[u:,:])
+
+@devec r = B[u:,2:]
+@test isequal(r, B[u:,2:])
+
+@devec r = B[u:,2:5]
+@test isequal(r, B[u:,2:5])
+
+@devec r = B[u:v,:]
+@test isequal(r, B[u:v,:])
+
+@devec r = B[u:v,2:]
+@test isequal(r, B[u:v,2:])
+
+@devec r = B[u:v,2:5]
+@test isequal(r, B[u:v,2:5])
+
+@devec r = B[2:,:]
+@test isequal(r, B[2:,:])
+
+@devec r = B[2:5,:]
+@test isequal(r, B[2:5,:])
+
+@devec r = B[:,u:]
+@test isequal(r, B[:,u:])
+
+@devec r = B[2:,u:]
+@test isequal(r, B[2:,u:])
+
+@devec r = B[2:5,u:]
+@test isequal(r, B[2:5,u:])
+
+@devec r = B[:,u:v]
+@test isequal(r, B[:,u:v])
+
+@devec r = B[2:,u:v]
+@test isequal(r, B[2:,u:v])
+
+@devec r = B[2:5,u:v]
+@test isequal(r, B[2:5,u:v])
+
+# 2D ref on LHS
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[:,:] = B[:,:]
+rr[:,:] = B[:,:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[:,2:] = B[:,2:]
+rr[:,2:] = B[:,2:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[:,2:5] = B[:,2:5]
+rr[:,2:5] = B[:,2:5]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[u:,:] = B[u:,:]
+rr[u:,:] = B[u:,:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[u:,2:] = B[u:,2:]
+rr[u:,2:] = B[u:,2:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[u:,2:5] = B[u:,2:5]
+rr[u:,2:5] = B[u:,2:5]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[u:v,:] = B[u:v,:]
+rr[u:v,:] = B[u:v,:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[u:v,2:] = B[u:v,2:]
+rr[u:v,2:] = B[u:v,2:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[u:v,2:5] = B[u:v,2:5]
+rr[u:v,2:5] = B[u:v,2:5]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[2:,:] = B[2:,:]
+rr[2:,:] = B[2:,:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[2:5,:] = B[2:5,:]
+rr[2:5,:] = B[2:5,:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[:,u:] = B[:,u:]
+rr[:,u:] = B[:,u:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[2:,u:] = B[2:,u:]
+rr[2:,u:] = B[2:,u:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[2:5,u:] = B[2:5,u:]
+rr[2:5,u:] = B[2:5,u:]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[:,u:v] = B[:,u:v]
+rr[:,u:v] = B[:,u:v]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[2:,u:v] = B[2:,u:v]
+rr[2:,u:v] = B[2:,u:v]
+@test isequal(r, rr)
+
+r = zeros(size(B))
+rr = zeros(size(B))
+@devec r[2:5,u:v] = B[2:5,u:v]
+rr[2:5,u:v] = B[2:5,u:v]
+@test isequal(r, rr)
 
