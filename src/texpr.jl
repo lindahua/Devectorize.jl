@@ -23,6 +23,8 @@ abstract TExpr
 # expressions that can be an argument for element-wise computation
 abstract TEWise <: TExpr
 
+abstract TGeneralVar <: TEWise
+
 # expressions that is sured to be a scalar
 abstract TScalar <: TEWise
 
@@ -44,7 +46,7 @@ end
 == (a::TScalarVar, b::TScalarVar) = (a.name == b.name)
 != (a::TScalarVar, b::TScalarVar) = !(a == b)
 
-type TVar <: TEWise
+type TVar <: TGeneralVar
 	name::Symbol
 end
 
@@ -52,14 +54,12 @@ end
 != (a::TVar, b::TVar) = !(a == b)
 
 # qualified variable, e.g. abc.x
-type TQVar <: TEWise
+type TQVar <: TGeneralVar
 	form::Expr
 end
 
 == (a::TQVar, b::TQVar) = (a.form == b.form)
 != (a::TQVar, b::TQVar) = !(a == b)
-
-TGeneralVar = Union(TVar, TQVar)
 
 
 # references
@@ -78,24 +78,22 @@ end
 == (a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
 != (a::TInterval, b::TInterval) = !(a == b)
 
-abstract TRefScalar <: TScalar
-
-type TRefScalar1 <: TRefScalar
+type TGeneralRef1 <: TGeneralVar
 	host::TGeneralVar
-	i::TIndex
+	i::Any
 end
 
-== (a::TRefScalar1, b::TRefScalar1) = (a.host == b.host) && (a.i == b.i)
-!= (a::TRefScalar1, b::TRefScalar1) = !(a == b)
+== (a::TGeneralRef1, b::TGeneralRef1) = (a.host == b.host) && (a.i == b.i)
+!= (a::TGeneralRef1, b::TGeneralRef1) = !(a == b)
 
-type TRefScalar2 <: TRefScalar
+type TGeneralRef2 <: TGeneralVar
 	host::TGeneralVar
-	i::TIndex
-	j::TIndex
+	i::Any
+	j::Any
 end
 
-== (a::TRefScalar2, b::TRefScalar2) = (a.host == b.host) && (a.i == b.i) && (a.j == b.j)
-!= (a::TRefScalar2, b::TRefScalar2) = !(a == b)
+== (a::TGeneralRef2, b::TGeneralRef2) = (a.host == b.host) && (a.i == b.i) && (a.j == b.j)
+!= (a::TGeneralRef2, b::TGeneralRef2) = !(a == b)
 
 type TRef1D <: TRef
 	host::TGeneralVar
@@ -180,7 +178,7 @@ end
 # others
 
 typealias TRValue Union(TEWise, TFunCall)
-typealias TLValue Union(TGeneralVar, TRefScalar, TRef)
+typealias TLValue Union(TGeneralVar, TRef)
 
 type TAssign{Lhs<:TLValue, Rhs<:TRValue} <: TExpr
 	lhs::Lhs
@@ -291,41 +289,47 @@ end
 
 # reference expressions
 
-function check_simple_ref(c::Bool)
+function check_ref_validity(ex::Expr, c::Bool)
 	if !c
-		throw(DeError("non-simple ref-expression is not supported"))
+		throw(DeError("The ref-expression $ex is not supported yet."))
 	end
 end
 
+tref_arg(i::Any) = i
 tref_arg(i::Int) = i
 tref_arg(i::Symbol) = i == :(:) ? TColon() : i
 
 function tref_arg(ex::Expr)
-	check_simple_ref(ex.head == :(:) && length(ex.args) == 2)
-	a1 = ex.args[1]
-	a2 = ex.args[2]
-	
-	if isa(a1, Int) || (isa(a1, Symbol) && a1 != :(:))
-		first = a1
-	else
-		check_simple_ref(false)
-	end
+	if ex.head == :(:)
+		check_ref_validity(ex, length(ex.args) == 2)
 
-	if isa(a2, Int)
-		last = a2
-	elseif isa(a2, Symbol)
-		last = a2 == :(:) ? nothing : a2
-	else
-		check_simple_ref(false)
-	end
+		a1 = ex.args[1]
+		a2 = ex.args[2]
 
-	TInterval(first, last)
+		if isa(a1, Int) || (isa(a1, Symbol) && a1 != :(:))
+			first = a1
+		else
+			check_ref_validity(ex, false)
+		end
+
+		if isa(a2, Int)
+			last = a2
+		elseif isa(a2, Symbol)
+			last = a2 == :(:) ? nothing : a2
+		else
+			check_ref_validity(ex, false)
+		end
+
+		TInterval(first, last)
+	else
+		ex
+	end
 end
 
-tref(x::TGeneralVar, i::TIndex) = TRefScalar1(x, i)
+tref(x::TGeneralVar, i::Any) = TGeneralRef1(x, i)
 tref(x::TGeneralVar, r::TRange) = TRef1D(x, r)
 
-tref(x::TGeneralVar, i::TIndex, j::TIndex) = TRefScalar2(x, i, j)
+tref(x::TGeneralVar, i::Any, j::Any) = TGeneralRef2(x, i, j)
 tref(x::TGeneralVar, i::TIndex, c::TRange) = TRefRow(x, i, c)
 tref(x::TGeneralVar, r::TRange, j::TIndex) = TRefCol(x, r, j)
 tref(x::TGeneralVar, r::TRange, c::TRange) = TRef2D(x, r, c)
@@ -334,7 +338,7 @@ function tref(ex::Expr)
 	@assert ex.head == :(ref)
 
 	na = length(ex.args)
-	check_simple_ref(na == 2 || na == 3)
+	check_ref_validity(ex, na == 2 || na == 3)
 
 	h = ex.args[1]
 	if isa(h, Symbol)		
@@ -342,7 +346,7 @@ function tref(ex::Expr)
 	elseif isa(h, Expr) && h.head == :(.)
 		h = tqvar(h)
 	else
-		check_simple_ref(false)
+		check_ref_validity(ex, false)
 	end
 
 	if na == 2
@@ -484,16 +488,6 @@ function decide_assign_tmode(lhs::TExpr, rhs::TExpr)
 
 	if isa(lhs, TGeneralVar)
 		mode = tmode(rhs)
-
-	elseif isa(lhs, TRefScalar)
-		rmode = tmode(rhs)
-		if isa(rmode, ScalarMode) || isa(rmode, EWiseMode{0})
-			mode = ScalarMode()
-		elseif isa(rmode, ReducMode)
-			mode = ReducMode()
-		else
-			throw(DeError("rhs cannot contain non-scalar ref when lhs is a scalar-ref."))
-		end
 
 	elseif isa(lhs, TRef)
 		@assert isa(lhs, TEWise)

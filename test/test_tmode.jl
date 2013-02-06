@@ -35,9 +35,9 @@ end
 
 # reference
 
-@test_te a[1]		TRefScalar1		ScalarMode()
-@test_te a[i] 		TRefScalar1 	ScalarMode()
-@test_te a.b[i] 	TRefScalar1 	ScalarMode()
+@test_te a[1]		TGeneralRef1	EWiseMode{0}()
+@test_te a[i] 		TGeneralRef1 	EWiseMode{0}()
+@test_te a.b[i] 	TGeneralRef1 	EWiseMode{0}()
 @test_te a[:] 		TRef1D 			EWiseMode{1}()
 @test_te a.b[:] 	TRef1D 			EWiseMode{1}()
 @test_te a[:,1]		TRefCol 		EWiseMode{1}()
@@ -51,7 +51,7 @@ end
 @test_te -a 			TMap 	EWiseMode{0}()
 @test_te sin(1.2) 		TMap 	ScalarMode()
 @test_te sin(a) 		TMap 	EWiseMode{0}()
-@test_te sin(a[0]) 		TMap 	ScalarMode()
+@test_te sin(a[0]) 		TMap 	EWiseMode{0}()
 @test_te sin(a[:])	 	TMap 	EWiseMode{1}()
 @test_te sin(a[:,:]) 	TMap 	EWiseMode{2}()
 @test_te sin(a.b[:]) 	TMap 	EWiseMode{1}()
@@ -67,13 +67,13 @@ end
 
 @test_te 1 + 2 			TMap	ScalarMode()
 @test_te 1 + b			TMap 	EWiseMode{0}()
-@test_te 1 + b[1] 		TMap	ScalarMode()
+@test_te 1 + b[1] 		TMap	EWiseMode{0}()
 @test_te 1 + b[:] 		TMap	EWiseMode{1}()
 @test_te 1 + b[:,:]		TMap 	EWiseMode{2}()
 
-@test_te a[1] + 2 			TMap	ScalarMode()
+@test_te a[1] + 2 			TMap	EWiseMode{0}()
 @test_te a[1] + b			TMap 	EWiseMode{0}()
-@test_te a[1] + b[1] 		TMap	ScalarMode()
+@test_te a[1] + b[1] 		TMap	EWiseMode{0}()
 @test_te a[1] + b[:] 		TMap	EWiseMode{1}()
 @test_te a[1] + b[:,:]		TMap 	EWiseMode{2}()
 
@@ -149,7 +149,7 @@ end
 @test_te a[:] + b .* 2 		TMap	EWiseMode{1}()
 @test_te a + b[:] .* c 		TMap	EWiseMode{1}()
 @test_te a + 3 .* c[:,:]	TMap	EWiseMode{2}()
-@test_te a[0] + 2 .* c[0]	TMap 	ScalarMode()
+@test_te a[0] + 2 .* c[0]	TMap 	EWiseMode{0}()
 @test_te a.x[:] + 2 .* c.y 	TMap 	EWiseMode{1}()
 
 @test_te blend(a .> 1, c, d)	TMap 	EWiseMode{0}()

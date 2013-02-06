@@ -48,53 +48,66 @@ ex = texpr(:(a.b.c))
 ###########################################################
 
 ex = texpr(:(a[1]))
-@test isa(ex, TRefScalar1)
+@test isa(ex, TGeneralRef1)
 @test ex.host == tvar(:a)
 @test ex.i == 1
 @test ex == tref(:(a[1]))
 
 ex = texpr(:(a[x]))
-@test isa(ex, TRefScalar1)
+@test isa(ex, TGeneralRef1)
 @test ex.host == tvar(:a)
 @test ex.i == :x
 @test ex == tref(:(a[x]))
 
+ex = texpr(:(a["s"]))
+@test isa(ex, TGeneralRef1)
+@test ex.host == tvar(:a)
+@test ex.i == "s"
+@test ex == tref(:(a["s"]))
+
 ex = texpr(:(a[1,2]))
-@test isa(ex, TRefScalar2)
+@test isa(ex, TGeneralRef2)
 @test ex.host == tvar(:a)
 @test ex.i == 1
 @test ex.j == 2
 @test ex == tref(:(a[1,2]))
 
+ex = texpr(:(a["s", "t"]))
+@test isa(ex, TGeneralRef2)
+@test ex.host == tvar(:a)
+@test ex.i == "s"
+@test ex.j == "t"
+@test ex == tref(:(a["s", "t"]))
+
 ex = texpr(:(a[x,2]))
-@test isa(ex, TRefScalar2)
+@test isa(ex, TGeneralRef2)
 @test ex.host == tvar(:a)
 @test ex.i == :x
 @test ex.j == 2
 @test ex == tref(:(a[x,2]))
 
 ex = texpr(:(a[1,y]))
-@test isa(ex, TRefScalar2)
+@test isa(ex, TGeneralRef2)
 @test ex.host == tvar(:a)
 @test ex.i == 1
 @test ex.j == :y
 @test ex == tref(:(a[1,y]))
 
 ex = texpr(:(a[x,y]))
-@test isa(ex, TRefScalar2)
+@test isa(ex, TGeneralRef2)
 @test ex.host == tvar(:a)
 @test ex.i == :x
 @test ex.j == :y
 @test ex == tref(:(a[x,y]))
 
 ex = texpr(:(a.b[2]))
-@test isa(ex, TRefScalar1)
+@test isa(ex, TGeneralRef1)
 @test ex.host == tqvar(:(a.b))
 @test ex.i == 2
 @test ex == tref(:(a.b[2]))
 
 ex = texpr(:(a.b[2,3]))
-@test isa(ex, TRefScalar2)
+@test isa(ex, TGeneralRef2)
 @test ex.host == tqvar(:(a.b))
 @test ex.i == 2
 @test ex.j == 3
