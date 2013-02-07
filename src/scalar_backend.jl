@@ -752,7 +752,6 @@ function compile(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign)
 	)	
 end
 
-
 ##########################################################################
 #
 # 	code-generating macros
@@ -774,5 +773,4 @@ macro inspect_devec(assign_ex)
 		esc(code__)
 	end
 end
-
 

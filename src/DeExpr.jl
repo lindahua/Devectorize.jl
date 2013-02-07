@@ -28,8 +28,11 @@ export
 	# scalar_backend
 
 	ScalarContext, dump_devec,
-	compile, @devec, @inspect_devec
-
+	compile, @devec, @inspect_devec,
+	
+	# extensions
+	
+	@devec_transform
 
 import Base.==, Base.!=
 
@@ -39,5 +42,7 @@ include("meta_tools.jl")
 
 include("compile_base.jl")
 include("scalar_backend.jl")
+
+include("extensions.jl")
 
 end
