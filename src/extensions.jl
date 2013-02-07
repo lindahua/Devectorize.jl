@@ -103,7 +103,7 @@ function devec_transform_helper(d, args...)
         push!(trailer, :(d[Devectorize.bestkey(d, $(Devectorize.quot(s)))] = $(var_lookup[s])))
     end
     push!(trailer, :(d))
-    esc(Expr(:block, [header, body, trailer], Any))
+    esc(:(let d = $d; $(Expr(:block, [header, body, trailer], Any)); end))
 end
 
 macro devec_transform(df, args...)
