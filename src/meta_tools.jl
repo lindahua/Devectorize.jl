@@ -74,6 +74,12 @@ end
 #
 ##########################################################################
 
+# helper for returning length
+
+to_length(s::Int) = s
+to_length(s::(Int,)) = s[1]
+to_length(s::(Int, Int)) = s[1] * s[2]
+
 # helper for returning 2D size
 
 to_size2d(s::Int) = (s, 1)

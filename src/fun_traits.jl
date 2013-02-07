@@ -182,4 +182,30 @@ for s in [ :dot ]
 	@eval $(register_reductor(s, 2))
 end
 
+# reduction function traits
+
+reduc_result_getter(f::TFun, s::Symbol, n::Symbol) = s
+
+reduc_initializer(f::TFun{:sum}, ty::Symbol) = :( zero($ty) )
+reduc_emptyval(f::TFun{:sum}, ty::Symbol) = :( zero($ty) )
+reduc_updater(f::TFun{:sum}, s::Symbol, x::Symbol) = :( $s += $x )
+
+reduc_initializer(f::TFun{:max}, ty::Symbol) = :( typemin($ty) )
+reduc_emptyval(f::TFun{:max}, ty::Symbol) = :( typemin($ty) )
+reduc_updater(f::TFun{:max}, s::Symbol, x::Symbol) = :( $s = max($s, $x) )
+
+reduc_initializer(f::TFun{:min}, ty::Symbol) = :( typemax($ty) )
+reduc_emptyval(f::TFun{:min}, ty::Symbol) = :( typemax($ty) )
+reduc_updater(f::TFun{:min}, s::Symbol, x::Symbol) = :( $s = min($s, $x) )
+
+reduc_initializer(f::TFun{:mean}, ty::Symbol) = :( zero($ty) )
+reduc_emptyval(f::TFun{:mean}, ty::Symbol) = :( nan($ty) )
+reduc_updater(f::TFun{:mean}, s::Symbol, x::Symbol) = :( $s += $x )
+reduc_result_getter(f::TFun{:mean}, s::Symbol, n::Symbol) = :( $s / $n )
+
+reduc_initializer(f::TFun{:dot}, ty::Symbol) = :( zero($ty) )
+reduc_emptyval(f::TFun{:dot}, ty::Symbol) = :( zero($ty) )
+reduc_updater(f::TFun{:dot}, s::Symbol, x::Symbol, y::Symbol) = :( $s += $x * $y )
+
+
 
