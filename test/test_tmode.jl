@@ -1,5 +1,5 @@
 
-using DeExpr
+using Devectorize
 
 macro test_te(expr, expect_ty, expect_mode)
 	te = texpr(expr)

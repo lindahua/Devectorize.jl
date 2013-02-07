@@ -662,7 +662,7 @@ function compile(ctx::ScalarContext, mode::ColwiseReducMode, ex::TAssign)
 
 	flatten_code_block(
 		pre,
-		:( ($m, $n) = DeExpr.to_size2d($siz) ),
+		:( ($m, $n) = Devectorize.to_size2d($siz) ),
 		lhs_pre,
 		if_statement( :( $m > 0 ), 
 			flatten_code_block(  # not empty
@@ -734,7 +734,7 @@ function compile(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign)
 
 	flatten_code_block(
 		pre,
-		:( ($m, $n) = DeExpr.to_size2d($siz) ),
+		:( ($m, $n) = Devectorize.to_size2d($siz) ),
 		lhs_pre,
 		if_statement( :( $m > 0 ), 
 			flatten_code_block(  # not empty

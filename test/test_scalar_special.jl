@@ -1,10 +1,10 @@
 # Test special handling of scalars
 
-import DeExpr
-import DeExpr.@devec
-import DeExpr.@inspect_devec
-import DeExpr.dump_devec
-import DeExpr.sqr
+import Devectorize
+import Devectorize.@devec
+import Devectorize.@inspect_devec
+import Devectorize.dump_devec
+import Devectorize.sqr
 
 using Test
 

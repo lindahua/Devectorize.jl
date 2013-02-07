@@ -94,13 +94,13 @@ function devec_transform_helper(d, args...)
     # header
     header = Any[]
     for (s,v) in var_lookup
-        push!(header, :($v = DeExpr.xhas(d, DeExpr.bestkey(d, $(quot(s)))) ? 
-			d[DeExpr.bestkey(d, $(quot(s)))] : isdefined($(quot(s))) ? $s : nothing))
+        push!(header, :($v = Devectorize.xhas(d, Devectorize.bestkey(d, $(quot(s)))) ? 
+			d[Devectorize.bestkey(d, $(quot(s)))] : isdefined($(quot(s))) ? $s : nothing))
     end
     # trailer
     trailer = Any[]
     for (s,v) in lhs_lookup
-        push!(trailer, :(d[DeExpr.bestkey(d, $(DeExpr.quot(s)))] = $(var_lookup[s])))
+        push!(trailer, :(d[Devectorize.bestkey(d, $(Devectorize.quot(s)))] = $(var_lookup[s])))
     end
     push!(trailer, :(d))
     esc(Expr(:block, [header, body, trailer], Any))

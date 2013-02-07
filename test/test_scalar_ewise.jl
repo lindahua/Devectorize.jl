@@ -1,11 +1,11 @@
 # Unit testing for element-wise expressions on scalar backend
 
-import DeExpr
-import DeExpr.@devec
-import DeExpr.@inspect_devec
-import DeExpr.dump_devec
-import DeExpr.sqr
-import DeExpr.blend
+import Devectorize
+import Devectorize.@devec
+import Devectorize.@inspect_devec
+import Devectorize.dump_devec
+import Devectorize.sqr
+import Devectorize.blend
 
 using Test
 

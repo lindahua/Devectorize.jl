@@ -1,5 +1,5 @@
 
-using DeExpr
+using Devectorize
 using Test
 
 #################################################

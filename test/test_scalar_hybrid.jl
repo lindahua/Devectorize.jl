@@ -1,7 +1,7 @@
 # Unit testing for hybrid expressions
 
 using Test
-using DeExpr
+using Devectorize
 
 #data
 

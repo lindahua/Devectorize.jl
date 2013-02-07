@@ -38,9 +38,9 @@ function compile(ctx::EvalContext, top_expr::Expr)
 		te = texpr(top_expr)
 		compile(ctx, te)
 	elseif h == :(*=)
-		throw(DeError("DeExpr does not support *=, please use .*= for element-wise multiplication."))
+		throw(DeError("Devectorize does not support *=, please use .*= for element-wise multiplication."))
 	elseif h == :(/=)
-		throw(DeError("DeExpr does not support /=, please use ./= for element-wise division."))
+		throw(DeError("Devectorize does not support /=, please use ./= for element-wise division."))
 	else
 		throw(DeError("Top level expression must be either an assignment, op-assignment, or a block."))
 	end

@@ -1,4 +1,4 @@
-module DeExpr
+module Devectorize
 	
 export
 	# fun_traits

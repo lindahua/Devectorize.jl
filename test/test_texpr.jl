@@ -1,7 +1,7 @@
 # Unit testing for texpr
 
 using Test
-using DeExpr
+using Devectorize
 
 ###########################################################
 #

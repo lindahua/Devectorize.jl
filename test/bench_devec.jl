@@ -1,11 +1,11 @@
 # Benchmarks to compare the performance of 
 #
-#	- devec macro (in DeExpr)
+#	- devec macro (in Devectorize)
 #	- hand-coded devectorized for-loop
 #	- vectorized Julia code
 #
 
-using DeExpr
+using Devectorize
 
 # benchmark helpers
 
@@ -54,7 +54,7 @@ type simple_ewise end
 formula(::simple_ewise) = "(a - b).^2 + c"
 
 function vec_eval{T<:Real}(::simple_ewise, a::Array{T}, b::Array{T}, c::Array{T})
-	r = sqr(a - b) + c   # Note: DeExpr defines a sqr on arrays
+	r = sqr(a - b) + c   # Note: Devectorize defines a sqr on arrays
 end
 
 function devec_eval{T<:Real}(::simple_ewise, a::Array{T}, b::Array{T}, c::Array{T})

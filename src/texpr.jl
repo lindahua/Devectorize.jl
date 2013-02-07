@@ -431,7 +431,7 @@ function recognize_partial_reduction(f::Symbol, a::TExpr...)
 			elseif dim == 2
 				TRowwiseReduc(f, fargs, deps)
 			else
-				throw(DeError("DeExpr supports either colwise or rowwise reduction."))
+				throw(DeError("Devectorize supports either colwise or rowwise reduction."))
 			end
 		end
 	elseif f == (:max) || f == (:min)
@@ -443,7 +443,7 @@ function recognize_partial_reduction(f::Symbol, a::TExpr...)
 			elseif dim == 2
 				TRowwiseReduc(f, fargs, deps)
 			else
-				throw(DeError("DeExpr supports either colwise or rowwise reduction."))
+				throw(DeError("Devectorize supports either colwise or rowwise reduction."))
 			end
 		end
 	end
@@ -467,18 +467,18 @@ function tcall(f::Symbol, args)
 		TReduc(f, fargs, arg_mode, deps)
 
 	elseif f == :(*)
-		throw(DeError("DeExpr does not support *, please use .* to express element-wise multiplication."))
+		throw(DeError("Devectorize does not support *, please use .* to express element-wise multiplication."))
 		
 	elseif f == :(/)
-		throw(DeError("DeExpr does not support /, please use ./ to express element-wise division."))
+		throw(DeError("Devectorize does not support /, please use ./ to express element-wise division."))
 		
 	elseif f == :(^)
-		throw(DeError("DeExpr does not support ^, please use .^ to express element-wise power."))
+		throw(DeError("Devectorize does not support ^, please use .^ to express element-wise power."))
 
 	else
 		ex = recognize_partial_reduction(f, args...)
 		if ex == nothing
-			throw(DeError("Unrecognized function $f with $n arguments (in DeExpr)"))
+			throw(DeError("Unrecognized function $f with $n arguments (in Devectorize)"))
 		end
 		return ex
 	end
@@ -536,7 +536,7 @@ end
 
 function tassign(lhs::TExpr, rhs::TExpr)
 	if isa(rhs, TAssign)
-		throw(DeError("chained assignment is not supported by DeExpr"))
+		throw(DeError("chained assignment is not supported by Devectorize"))
 	end
 	mode = decide_assign_tmode(lhs, rhs)
 	TAssign{typeof(lhs),typeof(rhs)}(lhs, rhs, mode)

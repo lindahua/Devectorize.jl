@@ -1,9 +1,9 @@
 # Testing of simple and reference expressions on scalar context
 
-import DeExpr
-import DeExpr.@devec
-import DeExpr.@inspect_devec
-import DeExpr.dump_devec
+import Devectorize
+import Devectorize.@devec
+import Devectorize.@inspect_devec
+import Devectorize.dump_devec
 
 using Test
 

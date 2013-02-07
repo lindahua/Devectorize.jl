@@ -45,7 +45,7 @@ function qname(m::Symbol, x::Symbol)
 	expr(:(.), m, expr(:quote, x))
 end
 
-qname(x::Symbol) = qname(:DeExpr, x)
+qname(x::Symbol) = qname(:Devectorize, x)
 
 function assignment(lhs, rhs)
 	expr(:(=), lhs, rhs)
