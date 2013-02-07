@@ -203,4 +203,16 @@ r = a
 @test isequal(r, a * 2 - (c + 3))
 
 
+#################################################
+#
+#	blocks
+#
+#################################################
+
+@devec begin
+	x = a + b .* c
+	y = sqr(a) + c
+end
+@test isequal(x, a + b .* c)
+@test isequal(y, sqr(a) + c)
 

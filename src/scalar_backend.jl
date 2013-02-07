@@ -498,7 +498,9 @@ end
 #
 ##########################################################################
 
-function setup_full_reduc(ctx::ScalarContext, r::TReduc, ty::Symbol, siz::Symbol, s::Symbol, rlen::Symbol)
+function setup_reduc(ctx::ScalarContext, r::Union(TReduc, TColwiseReduc, TRowwiseReduc), 
+	ty::Symbol, siz::Symbol, s::Symbol, rlen::Symbol)
+	
 	init_args, infer_siz, infer_ty, final_args, args_info = setup_args(ctx, r.fun, r.args)
 	
 	tf = TFun{r.fun}()
@@ -506,8 +508,7 @@ function setup_full_reduc(ctx::ScalarContext, r::TReduc, ty::Symbol, siz::Symbol
 	pre = flatten_code_block(
 		init_args,
 		assignment(siz, infer_siz),
-		assignment(ty, infer_ty),
-		assignment(rlen, fun_call(qname(:to_length), siz)) 
+		assignment(ty, infer_ty)
 	)
 	
 	rinit = reduc_initializer(tf, ty)
@@ -574,7 +575,7 @@ function compile(ctx::ScalarContext, mode::ReducMode, ex::TAssign)
 	s = lhs.name # compiler has ensured no alias between lhs and rhs
 	
 	# setup 
-	(pre, final_args, rinit, rempty, rget, args_info) = setup_full_reduc(ctx, rhs, ty, siz, s, rlen)
+	(pre, final_args, rinit, rempty, rget, args_info) = setup_reduc(ctx, rhs, ty, siz, s, rlen)
 	
 	if rget == s
 		rpost = nothing
@@ -601,6 +602,7 @@ function compile(ctx::ScalarContext, mode::ReducMode, ex::TAssign)
 
 	flatten_code_block(
 		pre,
+		assignment(rlen, fun_call(qname(:to_length), siz)),
 		if_statement( :( $rlen > 0 ), 
 			flatten_code_block(  # not empty
 				assignment(s, rinit),
@@ -616,33 +618,139 @@ function compile(ctx::ScalarContext, mode::ReducMode, ex::TAssign)
 end
 
 
+# partial reduction
 
-# Fast full reduction
+function compile(ctx::ScalarContext, mode::ColwiseReducMode, ex::TAssign)
+	
+	lhs = ex.lhs
+	rhs = ex.rhs
+	@assert isa(lhs, TVar) || isa(lhs, TRef)
+	@assert isa(rhs, TColwiseReduc)
 
-# function compile_fast_reduc(ctx::ScalarContext, iex::TExpr, ex::TAssign)
-# 	if !(isa(ex.lhs, TSym) && isa(ex.rhs, TReduc))
-# 		throw(DeError("Invalid expression for fast_reduc."))
-# 	end
+	# generate symbols
+	@gensym siz ty m n i j s
+	
+	# setup rhs
+	(pre, final_args, rinit, rempty, rget, args_info) = setup_reduc(ctx, rhs, ty, siz, s, m)
+	
+	if rget == s
+		rpost = nothing
+	else
+		rpost = assignment(s, rget)
+	end
+	
+	# setup lhs
+	if isa(lhs, TVar)
+		lhs_pre = assignment(lhs.name, fun_call(:Array, ty, 1, n))
+		lhs_info = nothing
+	else
+		(lhs_pre, lhs_info) = setup_lhs(ctx, lhs)
+	end
+	
+	lhs_kernel = compose_lhs_kernel(ctx, lhs, lhs_info, j)
+	
+	# main loop
+	kernel = compose_fold_kernel(ctx, rhs.fun, s, rhs.args, args_info, i, j)
+	main_loop = for_statement(j, 1, n, flatten_code_block(
+		assignment(s, rinit),
+		for_statement(i, 1, m, kernel),
+		rpost,
+		assignment(lhs_kernel, s)
+	))
+	
+	# integrate
 
-# 	@gensym siz
-# 	ty = iex.host
+	flatten_code_block(
+		pre,
+		:( ($m, $n) = DeExpr.to_size2d($siz) ),
+		lhs_pre,
+		if_statement( :( $m > 0 ), 
+			flatten_code_block(  # not empty
+				main_loop
+			),
+			flatten_code_block(  # empty
+				assignment(s, rempty),
+				for_statement(j, 1, n, assignment(lhs_kernel, s))
+			)
+		),
+		final_args
+	)	
+end
 
-# 	siz_infer, mode = if isa(iex, TRefScalar1)
-# 		:( ($siz) = ($(iex.i),) ), EWiseMode{1}()
-# 	elseif isa(iex, TRefScalar2)
-# 		:( ($siz) = ($(iex.i), $(iex.j)) ), EWiseMode{2}()
-# 	else
-# 		throw(DeError("Invalid size and type spec"))
-# 	end
 
-# 	s = ex.lhs.e
-# 	main = compose_reduc_main(ctx, mode, ex.lhs, ex.rhs, (s, siz, ty))
-# 	flatten_code_block(siz_infer, main)
-# end
+function compile(ctx::ScalarContext, mode::RowwiseReducMode, ex::TAssign)
+	
+	lhs = ex.lhs
+	rhs = ex.rhs
+	@assert isa(lhs, TVar) || isa(lhs, TRef)
+	@assert isa(rhs, TRowwiseReduc)
 
-# function compile_fast_reduc(ctx::ScalarContext, iex::Expr, ex::Expr)
-# 	compile_fast_reduc(ctx, texpr(iex), texpr(ex))
-# end
+	# generate symbols
+	@gensym siz ty m n i j s
+	
+	# setup rhs
+	(pre, final_args, rinit, rempty, rget, args_info) = setup_reduc(ctx, rhs, ty, siz, s, n)
+		
+	# setup lhs
+	
+	if isa(lhs, TVar)
+		lhs_pre = assignment(lhs.name, fun_call(:Array, ty, m, 1))
+		lhs_info = nothing
+	else
+		(lhs_pre, lhs_info) = setup_lhs(ctx, lhs)
+	end
+	lhs_kernel = compose_lhs_kernel(ctx, lhs, lhs_info, i)
+	
+	
+	# loops
+	
+	kernel = compose_fold_kernel(ctx, rhs.fun, s, rhs.args, args_info, i, j)
+	
+	init_loop = for_statement(i, 1, m, flatten_code_block(
+		assignment(s, rinit),
+		kernel,
+		assignment(lhs_kernel, s)
+	))
+	
+	main_loop = for_statement(j, 2, n, 
+		for_statement(i, 1, m, flatten_code_block(
+			assignment(s, lhs_kernel),
+			kernel,
+			assignment(lhs_kernel, s)
+		))
+	)
+	
+	if rget == s
+		post_loop = nothing
+	else
+		post_loop = for_statement(i, 1, m, code_block(
+			assignment(s, lhs_kernel),
+			assignment(s, rget),
+			assignment(lhs_kernel, s)
+		)) 
+	end
+	
+	# integrate
+
+	flatten_code_block(
+		pre,
+		:( ($m, $n) = DeExpr.to_size2d($siz) ),
+		lhs_pre,
+		if_statement( :( $m > 0 ), 
+			flatten_code_block(  # not empty
+				assignment(j, 1),
+				init_loop,
+				main_loop,
+				post_loop
+			),
+			flatten_code_block(  # empty
+				assignment(s, rempty),
+				for_statement(i, 1, m, assignment(lhs_kernel, s))
+			)
+		),
+		final_args
+	)	
+end
 
 
 ##########################################################################
@@ -666,18 +774,5 @@ macro inspect_devec(assign_ex)
 		esc(code__)
 	end
 end
-
-# macro fast_reduc(info_ex, assign_ex)
-# 	esc(compile_fast_reduc(ScalarContext(), info_ex, assign_ex))
-# end
-
-# macro inspect_fast_reduc(info_ex, assign_ex)
-# 	let code__ = compile_fast_reduc(ScalarContext(), info_ex, assign_ex)
-# 		println("$assign_ex ==>")
-# 		println(code__)
-# 		esc(code__)
-# 	end
-# end
-
 
 

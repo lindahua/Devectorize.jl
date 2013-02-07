@@ -3,13 +3,6 @@
 using Test
 using DeExpr
 
-# tools to help testing
-
-function dump_devec(ex::Expr)
-	println(DeExpr.compile(DeExpr.ScalarContext(), ex))
-end
-
-
 #data
 
 a = [1., 2., 3., 4.]

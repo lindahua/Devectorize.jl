@@ -60,3 +60,55 @@ r = zeros(1)
 
 @devec r = dot(abc[:,:], abc)
 @test isequal(r, dot(abc[:], abc[:]))
+
+
+#################################################
+#
+#	partial reduction
+#
+#################################################
+
+@devec r = sum(abc, 1)
+@test isequal(r, sum(abc, 1))
+
+@devec r = sum(abc, 2)
+@test isequal(r, sum(abc, 2))
+
+r = zeros(size(abc, 2))
+r0 = r
+@devec r[:] = sum(abc, 1)
+@test r === r0
+@test isequal(r, vec(sum(abc, 1)))
+
+r = zeros(size(abc, 1))
+r0 = r
+@devec r[:] = sum(abc, 2)
+@test r === r0
+@test isequal(r, vec(sum(abc, 2)))
+
+@devec r = mean(abc, 1)
+@test isequal(r, mean(abc, 1))
+
+@devec r = mean(abc, 2)
+@test isequal(r, mean(abc, 2))
+
+@devec r = max(abc, 1)
+@test isequal(r, max(abc, 1))
+
+@devec r = max(abc, 2)
+@test isequal(r, max(abc, 2))
+
+@devec r = min(abc, 1)
+@test isequal(r, min(abc, 1))
+
+@devec r = min(abc, 2)
+@test isequal(r, min(abc, 2))
+
+@devec r = sum(sqr(abc), 1)
+@test isequal(r, sum(abc .* abc, 1))
+
+@devec r = sum(sqr(abc), 2)
+@test isequal(r, sum(abc .* abc, 2))
+
+
+

@@ -406,7 +406,7 @@ function check_funcall_args(args::TExpr...)
 			pargs[i] = a
 		elseif isa(a, TReduc) || isa(a, TColwiseReduc) || isa(a, TRowwiseReduc)
 			dep_sym = gensym("dep")
-			pargs[i] = isa(a, TReduc) ? TScalarSym(dep_sym) : TVar(dep_sym)
+			pargs[i] = isa(a, TReduc) ? TScalarVar(dep_sym) : TVar(dep_sym)
 			if deps == nothing
 				deps = TExpr[]
 			end
@@ -580,8 +580,8 @@ function tblock(blk_ex::Expr)
 		if isa(e, LineNumberNode) || e.head == (:line)
 			continue
 		end
-		if !(e.head == :(=) || is_opassign(e.head) || e.head == :(block))
-			throw(DeError("Each statement in a block must be an assignment or a nested block"))
+		if !(e.head == :(=) || is_opassign(e.head))
+			throw(DeError("Each statement in a block must be an assignment or op-assignment."))
 		end
 		push!(blk.stmts, texpr(e))
 	end
