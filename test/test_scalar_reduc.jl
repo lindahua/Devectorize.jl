@@ -87,22 +87,22 @@ r0 = r
 @test isequal(r, vec(sum(abc, 2)))
 
 @devec r = mean(abc, 1)
-@test isequal(r, mean(abc, 1))
+@test isequal(r, sum(abc, 1) / size(abc, 1))
 
 @devec r = mean(abc, 2)
-@test isequal(r, mean(abc, 2))
+@test isequal(r, sum(abc, 2) / size(abc, 2))
 
-@devec r = max(abc, 1)
-@test isequal(r, max(abc, 1))
+@devec r = max(abc, (), 1)
+@test isequal(r, max(abc, (), 1))
 
-@devec r = max(abc, 2)
-@test isequal(r, max(abc, 2))
+@devec r = max(abc, (), 2)
+@test isequal(r, max(abc, (), 2))
 
-@devec r = min(abc, 1)
-@test isequal(r, min(abc, 1))
+@devec r = min(abc, (), 1)
+@test isequal(r, min(abc, (), 1))
 
-@devec r = min(abc, 2)
-@test isequal(r, min(abc, 2))
+@devec r = min(abc, (), 2)
+@test isequal(r, min(abc, (), 2))
 
 @devec r = sum(sqr(abc), 1)
 @test isequal(r, sum(abc .* abc, 1))
