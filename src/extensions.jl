@@ -71,17 +71,11 @@ function replace_syms(e::Expr, lookup::Associative)
         e.head = :(=)
     end
     if e.head == :call
-        Expr(e.head, length(e.args) <= 1 ? 
-			e.args : 
-			[e.args[1], map(x -> replace_syms(x, lookup), e.args[2:end])], e.typ)
+        length(e.args) <= 1 ? Expr(e.head, e.args) : Expr(e.head, e.args[1], map(x -> replace_syms(x, lookup), e.args[2:end])...)
     else
-        Expr(e.head, isempty(e.args) ? 
-			e.args : 
-			map(x -> replace_syms(x, lookup), e.args), e.typ)
+        isempty(e.args) ? Expr(e.head, e.args) : Expr(e.head, map(x -> replace_syms(x, lookup), e.args)...)
     end
 end
-
-quot(value) = expr(:quote, value)  # Toivo special
 
 function devec_transform_helper(d, args...)
     var_lookup = Dict()
@@ -94,16 +88,16 @@ function devec_transform_helper(d, args...)
     # header
     header = Any[]
     for (s,v) in var_lookup
-        push!(header, :($v = Devectorize.xhas(d, Devectorize.bestkey(d, $(quot(s)))) ? 
-			d[Devectorize.bestkey(d, $(quot(s)))] : isdefined($(quot(s))) ? $s : nothing))
+        push!(header, :($v = Devectorize.xhas(d, Devectorize.bestkey(d, $(Meta.quot(s)))) ? 
+			d[Devectorize.bestkey(d, $(Meta.quot(s)))] : isdefined($(Meta.quot(s))) ? $s : nothing))
     end
     # trailer
     trailer = Any[]
     for (s,v) in lhs_lookup
-        push!(trailer, :(d[Devectorize.bestkey(d, $(Devectorize.quot(s)))] = $(var_lookup[s])))
+        push!(trailer, :(d[Devectorize.bestkey(d, $(Meta.quot(s)))] = $(var_lookup[s])))
     end
     push!(trailer, :(d))
-    esc(:(let d = $d; $(Expr(:block, [header, body, trailer], Any)); end))
+    esc(:(let d = $d; $(Expr(:block, header..., body..., trailer...)); end))
 end
 
 macro devec_transform(df, args...)
