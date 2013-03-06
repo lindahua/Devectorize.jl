@@ -5,7 +5,7 @@ using Devectorize
 
 ###########################################################
 #
-#	simple expression construction
+#   simple expression construction
 #
 ###########################################################
 
@@ -41,7 +41,7 @@ ex = texpr(:(a.b))
 @test ex == tqvar(:(a.b))
 
 type A1
-	b
+    b
 end
 a = A1(2.3)
 @test eval(ju_expr(ex)) == a.b
@@ -53,7 +53,7 @@ ex = texpr(:(a.b.c))
 @test ex == tqvar(:(a.b.c))
 
 type A2
-	c
+    c
 end
 a = A1(A2(4.5))
 @test eval(ju_expr(ex)) == a.b.c
@@ -61,7 +61,7 @@ a = A1(A2(4.5))
 
 ###########################################################
 #
-#	scalar reference expression construction
+#   scalar reference expression construction
 #
 ###########################################################
 
@@ -72,7 +72,7 @@ ex = texpr(:(a[1]))
 @test ex.host == tvar(:a)
 @test ex.i == 1
 @test ex == tref(:(a[1]))
-@test eval(ju_expr(ex)) == a[1] 
+@test eval(ju_expr(ex)) == a[1]
 
 ex = texpr(:(a[x]))
 @test isa(ex, TGeneralRef1)
@@ -151,7 +151,7 @@ ex = texpr(:(a["s", "t"]))
 
 ###########################################################
 #
-#	1D array reference expression construction
+#   1D array reference expression construction
 #
 ###########################################################
 
@@ -206,7 +206,7 @@ ex = texpr(:(a.b[:]))
 
 ###########################################################
 #
-#	column reference expression construction
+#   column reference expression construction
 #
 ###########################################################
 
@@ -319,7 +319,7 @@ ex = texpr(:(a.b[:,j]))
 
 ###########################################################
 #
-#	row reference expression construction
+#   row reference expression construction
 #
 ###########################################################
 
@@ -431,7 +431,7 @@ ex = texpr(:(a.b[i, :]))
 
 ###########################################################
 #
-#	2D reference expression construction
+#   2D reference expression construction
 #
 ###########################################################
 
@@ -594,7 +594,7 @@ ex = texpr(:(a.b[i0:i1, j0:j1]))
 
 ###########################################################
 #
-#	Fun call expression construction
+#   Fun call expression construction
 #
 ###########################################################
 
@@ -743,7 +743,7 @@ ex = texpr(:(sum(a[1,2] + b .* c[:,:], 2)))
 
 ###########################################################
 #
-#	Assignments and blocks
+#   Assignments and blocks
 #
 ###########################################################
 
@@ -815,9 +815,9 @@ ex = texpr(:(r ./= a + b))
 # tblock
 
 blk = quote
-	a = b + 1
-	c.x[:] = a[:,j]
-	c .*= 2
+    a = b + 1
+    c.x[:] = a[:,j]
+    c .*= 2
 end
 ex = texpr(blk)
 @test isa(ex, TBlock)

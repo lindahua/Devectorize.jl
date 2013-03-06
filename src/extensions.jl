@@ -2,9 +2,9 @@
 
 ##########################################################################
 #
-# 	@devec_transform - a code-generating macro for associative types 
+#   @devec_transform - a code-generating macro for associative types
 #
-#	Note: this extension was contributed by Tom Short
+#   Note: this extension was contributed by Tom Short
 #
 ##########################################################################
 #
@@ -24,7 +24,7 @@
 #   It contains machinery to convert the symbol to a key type
 #   appropriate for the associative type. For example, DataFrames have
 #   string keys, so the symbol from the expression needs to be
-#   converted to a string. Also of issue is 
+#   converted to a string. Also of issue is
 #
 #   The following forms are supported:
 #
@@ -32,7 +32,7 @@
 #
 #       @devec_transform(d, a => x + y, b => x + sum(y))
 #
-# 
+#
 ##########################################################################
 
 
@@ -41,15 +41,15 @@
 xhas(d, key) = has(d, key)
 xhas{K<:String,V}(d::Associative{K,V}, key) = has(d, string(key))
 
-# The appropriate key for the type 
+# The appropriate key for the type
 bestkey(d, key) = key
 bestkey{K<:String,V}(d::Associative{K,V}, key) = string(key)
 
 #### The following will be needed in package DataFrames for support
 #
-# 	xhas(d::AbstractDataFrame, key::Symbol) = has(d, string(key))
-# 	bestkey(d::AbstractDataFrame, key) = string(key)
-# 	bestkey(d::NamedArray, key) = string(key)
+#   xhas(d::AbstractDataFrame, key::Symbol) = has(d, string(key))
+#   bestkey(d::AbstractDataFrame, key) = string(key)
+#   bestkey(d::NamedArray, key) = string(key)
 #
 
 # This replaces symbols with gensym'd versions and updates
@@ -88,8 +88,8 @@ function devec_transform_helper(d, args...)
     # header
     header = Any[]
     for (s,v) in var_lookup
-        push!(header, :($v = Devectorize.xhas(d, Devectorize.bestkey(d, $(Meta.quot(s)))) ? 
-			d[Devectorize.bestkey(d, $(Meta.quot(s)))] : isdefined($(Meta.quot(s))) ? $s : nothing))
+        push!(header, :($v = Devectorize.xhas(d, Devectorize.bestkey(d, $(Meta.quot(s)))) ?
+            d[Devectorize.bestkey(d, $(Meta.quot(s)))] : isdefined($(Meta.quot(s))) ? $s : nothing))
     end
     # trailer
     trailer = Any[]

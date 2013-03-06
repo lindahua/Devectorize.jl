@@ -19,7 +19,7 @@ abc = [a b c]
 
 #################################################
 #
-#	basic element-wise maps
+#   basic element-wise maps
 #
 #################################################
 
@@ -123,23 +123,23 @@ r[:] = 0.
 @test isequal(r, max(a+2, b))
 
 @devec r = blend(a + 2 .<= b, a + 2, b)
-@test isequal(r, min(a + 2, b)) 
+@test isequal(r, min(a + 2, b))
 
 r[:] = 0.
 @devec r[:] = blend(a + 2 .<= b, a + 2, b)
-@test isequal(r, min(a + 2, b)) 
+@test isequal(r, min(a + 2, b))
 
 
 #################################################
 #
-#	interaction with qualified names
+#   interaction with qualified names
 #
 #################################################
 
 type S
-	a::Array
-	b::Array
-	c::Array
+    a::Array
+    b::Array
+    c::Array
 end
 
 s = S(a, b, c)
@@ -156,7 +156,7 @@ s = S(a, b, c)
 
 #################################################
 #
-#	interaction with references
+#   interaction with references
 #
 #################################################
 
@@ -182,7 +182,7 @@ rr[:,2:3] = abc[:, 1:2] + cv
 
 #################################################
 #
-#	op-assignment
+#   op-assignment
 #
 #################################################
 
@@ -205,13 +205,13 @@ r = a
 
 #################################################
 #
-#	blocks
+#   blocks
 #
 #################################################
 
 @devec begin
-	x = a + b .* c
-	y = sqr(a) + c
+    x = a + b .* c
+    y = sqr(a) + c
 end
 @test isequal(x, a + b .* c)
 @test isequal(y, sqr(a) + c)

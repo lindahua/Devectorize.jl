@@ -13,7 +13,7 @@ get_op_kind{S,N}(::TCallSig{S,N}) = nothing
 
 ##########################################################################
 #
-# 	op-assignment
+#   op-assignment
 #
 #########################################################################
 
@@ -33,97 +33,97 @@ extract_assign_op(::TFun{:./=}) = (:./)
 
 ##########################################################################
 #
-# 	general devices to facilitate function registration
+#   general devices to facilitate function registration
 #
 #########################################################################
 
 
 function register_ewise_mathop(sym::Symbol, nargs::Integer)
-	# the function to generate the codes to register a ewise function
+    # the function to generate the codes to register a ewise function
 
-	tc = TCallSig{sym, nargs}
-	s1 = :( get_op_kind(::$(Meta.quot(tc))) = EWiseOp() )
+    tc = TCallSig{sym, nargs}
+    s1 = :( get_op_kind(::$(Meta.quot(tc))) = EWiseOp() )
 
-	tf = TFun{sym}
+    tf = TFun{sym}
 
-	if nargs == 1
-		s2 = :( result_type(::$(Meta.quot(tf)), 
-			T1::Type) = T1 )
-	elseif nargs == 2
-		s2 = :( result_type(::$(Meta.quot(tf)), 
-			T1::Type, T2::Type) = promote_type(T1, T2) )
-	elseif nargs == 3
-		s2 = :( result_type(::$(Meta.quot(tf)), 
-			T1::Type, T2::Type, T3::Type) = promote_type(promote_type(T1, T2), T3) )
-	else
-		error("register_ewise_mathop supports up to three arguments.")
-	end
+    if nargs == 1
+        s2 = :( result_type(::$(Meta.quot(tf)),
+            T1::Type) = T1 )
+    elseif nargs == 2
+        s2 = :( result_type(::$(Meta.quot(tf)),
+            T1::Type, T2::Type) = promote_type(T1, T2) )
+    elseif nargs == 3
+        s2 = :( result_type(::$(Meta.quot(tf)),
+            T1::Type, T2::Type, T3::Type) = promote_type(promote_type(T1, T2), T3) )
+    else
+        error("register_ewise_mathop supports up to three arguments.")
+    end
 
-	:( $s1; $s2 )
+    :( $s1; $s2 )
 end
 
 
 function register_ewise_pred(sym::Symbol, nargs::Integer)
-	# the function to generate the codes to register a ewise predicate
+    # the function to generate the codes to register a ewise predicate
 
-	tc = TCallSig{sym, nargs}
-	s1 = :( get_op_kind(::$(Meta.quot(tc))) = EWiseOp() )
+    tc = TCallSig{sym, nargs}
+    s1 = :( get_op_kind(::$(Meta.quot(tc))) = EWiseOp() )
 
-	tf = TFun{sym}
+    tf = TFun{sym}
 
-	if nargs == 1
-		s2 = :( result_type(::$(Meta.quot(tf)), ::Type) = Bool )
-	elseif nargs == 2
-		s2 = :( result_type(::$(Meta.quot(tf)), ::Type, ::Type) = Bool )
-	elseif nargs == 3
-		s2 = :( result_type(::$(Meta.quot(tf)), ::Type, ::Type, ::Type) = Bool )
-	else
-		error("register_ewise_pred supports up to three arguments.")
-	end
+    if nargs == 1
+        s2 = :( result_type(::$(Meta.quot(tf)), ::Type) = Bool )
+    elseif nargs == 2
+        s2 = :( result_type(::$(Meta.quot(tf)), ::Type, ::Type) = Bool )
+    elseif nargs == 3
+        s2 = :( result_type(::$(Meta.quot(tf)), ::Type, ::Type, ::Type) = Bool )
+    else
+        error("register_ewise_pred supports up to three arguments.")
+    end
 
-	:( $s1; $s2 )
+    :( $s1; $s2 )
 end
 
 
 function register_reductor(sym::Symbol, nargs::Integer)
-	# the function to generate the codes to register a reduction function
+    # the function to generate the codes to register a reduction function
 
-	tc = TCallSig{sym, nargs}
-	s1 = :( get_op_kind(::$(Meta.quot(tc))) = ReducOp() )
+    tc = TCallSig{sym, nargs}
+    s1 = :( get_op_kind(::$(Meta.quot(tc))) = ReducOp() )
 
-	tf = TFun{sym}
+    tf = TFun{sym}
 
-	if nargs == 1
-		s2 = :( result_type(::$(Meta.quot(tf)), 
-			T1::Type) = T1 )
-	elseif nargs == 2
-		s2 = :( result_type(::$(Meta.quot(tf)), 
-			T1::Type, T2::Type) = promote_type(T1, T2) )
-	elseif nargs == 3
-		s2 = :( result_type(::$(Meta.quot(tf)), 
-			T1::Type, T2::Type, T3::Type) = promote_type(promote_type(T1, T2), T3) )
-	else
-		error("register_reductor supports up to three arguments.")
-	end
+    if nargs == 1
+        s2 = :( result_type(::$(Meta.quot(tf)),
+            T1::Type) = T1 )
+    elseif nargs == 2
+        s2 = :( result_type(::$(Meta.quot(tf)),
+            T1::Type, T2::Type) = promote_type(T1, T2) )
+    elseif nargs == 3
+        s2 = :( result_type(::$(Meta.quot(tf)),
+            T1::Type, T2::Type, T3::Type) = promote_type(promote_type(T1, T2), T3) )
+    else
+        error("register_reductor supports up to three arguments.")
+    end
 
-	:( $s1; $s2 )
+    :( $s1; $s2 )
 end
 
 
 ##########################################################################
 #
-# 	registration of known operators and functions
+#   registration of known operators and functions
 #
 #########################################################################
 
 # arithmetics
 
 for s in [:+, :-]
-	@eval $(register_ewise_mathop(s, 1))
+    @eval $(register_ewise_mathop(s, 1))
 end
 
 for s in [:+, :-, :.+, :.-, :.*, :./, :.^, :max, :min]
-	@eval $(register_ewise_mathop(s, 2))
+    @eval $(register_ewise_mathop(s, 2))
 end
 
 @eval $(register_ewise_mathop(:+, 3))
@@ -132,7 +132,7 @@ end
 # comparison & logical
 
 for s in [:.==, :.!=, :.<, :.>, :.<=, :.>= ]
-	@eval $(register_ewise_pred(s, 2))
+    @eval $(register_ewise_pred(s, 2))
 end
 
 get_op_kind(::TCallSig{:&, 2}) = EWiseOp()
@@ -150,18 +150,18 @@ rcp(x::FloatingPoint) = one(x) / x
 rcp{T<:FloatingPoint}(a::AbstractArray{T}) =  one(eltype(a)) ./ a
 
 for s in [
-	:sqrt, :cbrt, :abs, :sqr, :rcp,  
-	:floor, :ceil, :round, :trunc,
-	:exp, :log, :log10, :exp2, :log2, :expm1, :log1p, 
-	:sin, :cos, :tan, :asin, :acos, :atan, 
-	:sinh, :cosh, :tanh, :asinh, :acosh, :atanh,
-	:erf, :erfc, :gamma, :lgamma, :digamma ]
+    :sqrt, :cbrt, :abs, :sqr, :rcp,
+    :floor, :ceil, :round, :trunc,
+    :exp, :log, :log10, :exp2, :log2, :expm1, :log1p,
+    :sin, :cos, :tan, :asin, :acos, :atan,
+    :sinh, :cosh, :tanh, :asinh, :acosh, :atanh,
+    :erf, :erfc, :gamma, :lgamma, :digamma ]
 
-	@eval $(register_ewise_mathop(s, 1))
+    @eval $(register_ewise_mathop(s, 1))
 end
 
 for s in [:mod, :hypot, :atan2]
-	@eval $(register_ewise_mathop(s, 2))
+    @eval $(register_ewise_mathop(s, 2))
 end
 
 # blending
@@ -175,11 +175,11 @@ result_type(::TFun{:blend}, ::Type{Bool}, T1::Type, T2::Type) = promote_type(T1,
 # reduction functions
 
 for s in [ :sum, :max, :min, :mean ]
-	@eval $(register_reductor(s, 1))
+    @eval $(register_reductor(s, 1))
 end
 
 for s in [ :dot ]
-	@eval $(register_reductor(s, 2))
+    @eval $(register_reductor(s, 2))
 end
 
 # reduction function traits
