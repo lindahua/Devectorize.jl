@@ -14,7 +14,7 @@ function code_block(stmts...)
 			push!(stmts_, s)
 		end
 	end
-	isempty(stmts_) ? nothing : expr(:block, stmts_)
+	isempty(stmts_) ? nothing : Expr(:block, stmts_...)
 end
 
 
@@ -38,33 +38,33 @@ function flatten_code_block(stmts...)
 end
 
 function fun_call(funsym, args...)
-	expr(:call, funsym, args...)
+	Expr(:call, funsym, args...)
 end
 
 function qname(m::Symbol, x::Symbol)
-	expr(:(.), m, expr(:quote, x))
+	Expr(:(.), m, Meta.quot(x))
 end
 
 qname(x::Symbol) = qname(:Devectorize, x)
 
 function assignment(lhs, rhs)
-	expr(:(=), lhs, rhs)
+	Expr(:(=), lhs, rhs)
 end
 
 function if_statement(con, tblock)
-	expr(:if, con, tblock)
+	Expr(:if, con, tblock)
 end
 
 function if_statement(con, tblock, fblock)
-	expr(:if, con, tblock, fblock)
+	Expr(:if, con, tblock, fblock)
 end
 
 function for_statement(head, body)
-	expr(:for, head, body)
+	Expr(:for, head, body)
 end
 
 function for_statement(i::Symbol, si::TIndex, ei::TIndex, body)
-	expr(:for, :( ($i) = ($si) : ($ei) ), body)
+	Expr(:for, :( ($i) = ($si) : ($ei) ), body)
 end
 
 

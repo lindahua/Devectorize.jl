@@ -159,7 +159,7 @@ end
 
 function ju_expr(tx::TMap)
 	ju_args = [ju_expr(a) for a in tx.args]
-	expr(:call, tx.fun, ju_args...)
+	Expr(:call, tx.fun, ju_args...)
 end
 as_scalar(tx::TMap) = TGeneralScalar(ju_expr(tx))
 

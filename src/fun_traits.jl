@@ -42,18 +42,18 @@ function register_ewise_mathop(sym::Symbol, nargs::Integer)
 	# the function to generate the codes to register a ewise function
 
 	tc = TCallSig{sym, nargs}
-	s1 = :( get_op_kind(::$(expr(:quote, tc))) = EWiseOp() )
+	s1 = :( get_op_kind(::$(Meta.quot(tc))) = EWiseOp() )
 
 	tf = TFun{sym}
 
 	if nargs == 1
-		s2 = :( result_type(::$(expr(:quote, tf)), 
+		s2 = :( result_type(::$(Meta.quot(tf)), 
 			T1::Type) = T1 )
 	elseif nargs == 2
-		s2 = :( result_type(::$(expr(:quote, tf)), 
+		s2 = :( result_type(::$(Meta.quot(tf)), 
 			T1::Type, T2::Type) = promote_type(T1, T2) )
 	elseif nargs == 3
-		s2 = :( result_type(::$(expr(:quote, tf)), 
+		s2 = :( result_type(::$(Meta.quot(tf)), 
 			T1::Type, T2::Type, T3::Type) = promote_type(promote_type(T1, T2), T3) )
 	else
 		error("register_ewise_mathop supports up to three arguments.")
@@ -67,16 +67,16 @@ function register_ewise_pred(sym::Symbol, nargs::Integer)
 	# the function to generate the codes to register a ewise predicate
 
 	tc = TCallSig{sym, nargs}
-	s1 = :( get_op_kind(::$(expr(:quote, tc))) = EWiseOp() )
+	s1 = :( get_op_kind(::$(Meta.quot(tc))) = EWiseOp() )
 
 	tf = TFun{sym}
 
 	if nargs == 1
-		s2 = :( result_type(::$(expr(:quote, tf)), ::Type) = Bool )
+		s2 = :( result_type(::$(Meta.quot(tf)), ::Type) = Bool )
 	elseif nargs == 2
-		s2 = :( result_type(::$(expr(:quote, tf)), ::Type, ::Type) = Bool )
+		s2 = :( result_type(::$(Meta.quot(tf)), ::Type, ::Type) = Bool )
 	elseif nargs == 3
-		s2 = :( result_type(::$(expr(:quote, tf)), ::Type, ::Type, ::Type) = Bool )
+		s2 = :( result_type(::$(Meta.quot(tf)), ::Type, ::Type, ::Type) = Bool )
 	else
 		error("register_ewise_pred supports up to three arguments.")
 	end
@@ -89,18 +89,18 @@ function register_reductor(sym::Symbol, nargs::Integer)
 	# the function to generate the codes to register a reduction function
 
 	tc = TCallSig{sym, nargs}
-	s1 = :( get_op_kind(::$(expr(:quote, tc))) = ReducOp() )
+	s1 = :( get_op_kind(::$(Meta.quot(tc))) = ReducOp() )
 
 	tf = TFun{sym}
 
 	if nargs == 1
-		s2 = :( result_type(::$(expr(:quote, tf)), 
+		s2 = :( result_type(::$(Meta.quot(tf)), 
 			T1::Type) = T1 )
 	elseif nargs == 2
-		s2 = :( result_type(::$(expr(:quote, tf)), 
+		s2 = :( result_type(::$(Meta.quot(tf)), 
 			T1::Type, T2::Type) = promote_type(T1, T2) )
 	elseif nargs == 3
-		s2 = :( result_type(::$(expr(:quote, tf)), 
+		s2 = :( result_type(::$(Meta.quot(tf)), 
 			T1::Type, T2::Type, T3::Type) = promote_type(promote_type(T1, T2), T3) )
 	else
 		error("register_reductor supports up to three arguments.")

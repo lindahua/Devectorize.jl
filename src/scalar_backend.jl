@@ -470,7 +470,7 @@ function compile(ctx::ScalarContext, mode::EWiseMode{2}, ex::TAssign)
 
 	m = gensym("m")
 	n = gensym("n")
-	get_mn = expr(:(=), :( ($m, $n) ), size2d_getter(ctx, lhs, lhs_info))
+	get_mn = Expr(:(=), :( ($m, $n) ), size2d_getter(ctx, lhs, lhs_info))
 
 	# kernel & main loop
 
