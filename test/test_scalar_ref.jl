@@ -5,7 +5,7 @@ import Devectorize.@devec
 import Devectorize.@inspect_devec
 import Devectorize.dump_devec
 
-using Test
+using Base.Test
 
 #data
 

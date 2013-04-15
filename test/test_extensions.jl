@@ -1,6 +1,6 @@
 
 using Devectorize
-using Test
+using Base.Test
 
 #################################################
 #

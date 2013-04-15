@@ -7,7 +7,7 @@ import Devectorize.dump_devec
 import Devectorize.sqr
 import Devectorize.blend
 
-using Test
+using Base.Test
 
 a = [1., 2., 3., 4., 5., 6., 7., 8.]
 b = [3., 4., 5., 6., 8., 7., 6., 5.]

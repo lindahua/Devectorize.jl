@@ -1,6 +1,6 @@
 # Unit testing for hybrid expressions
 
-using Test
+using Base.Test
 using Devectorize
 
 #data

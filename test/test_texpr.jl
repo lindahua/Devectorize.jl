@@ -1,6 +1,6 @@
 # Unit testing for texpr
 
-using Test
+using Base.Test
 using Devectorize
 
 ###########################################################

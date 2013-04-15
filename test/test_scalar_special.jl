@@ -6,7 +6,7 @@ import Devectorize.@inspect_devec
 import Devectorize.dump_devec
 import Devectorize.sqr
 
-using Test
+using Base.Test
 
 a = [1., 2., 3., 4., 5., 6., 7., 8.]
 

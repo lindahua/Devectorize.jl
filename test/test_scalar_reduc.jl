@@ -8,7 +8,7 @@ import Devectorize.@inspect_devec
 import Devectorize.dump_devec
 import Devectorize.sqr
 
-using Test
+using Base.Test
 
 
 # data
