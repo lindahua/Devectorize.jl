@@ -72,6 +72,8 @@ function replace_syms(e::Expr, lookup::Associative)
     end
     if e.head == :call
         length(e.args) <= 1 ? Expr(e.head, e.args) : Expr(e.head, e.args[1], map(x -> replace_syms(x, lookup), e.args[2:end])...)
+    elseif e.head == :comparison
+        Expr(e.head, replace_syms(e.args[1], lookup), e.args[2], replace_syms(e.args[3], lookup))
     else
         isempty(e.args) ? Expr(e.head, e.args) : Expr(e.head, map(x -> replace_syms(x, lookup), e.args)...)
     end
