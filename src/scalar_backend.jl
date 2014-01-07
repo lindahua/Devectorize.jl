@@ -162,6 +162,24 @@ function compose_lhs_kernel(ctx::ScalarContext, ex::TRef2D, h::Symbol, i::Symbol
     :( $(h)[$(indexer(ex.rrgn, i)), $(indexer(ex.crgn, j))] )
 end
 
+# TGeneralRef1
+
+function setup_lhs(ctx::ScalarContext, ex::TGeneralRef1)
+    with_sym_replacement(ex.host)
+    # could do conversion here of logical index to explicit index
+end
+
+function length_getter(ctx::ScalarContext, lhs::TGeneralRef1, h::Symbol)
+    # TODO: for logical indexing, really want to count the number of 'true's in lhs.i
+    length_inference(lhs.i)
+end
+
+function compose_lhs_kernel(ctx::ScalarContext, ex::TGeneralRef1, h::Symbol, i::Symbol)
+    # TODO: this kernel has to update for logical indexing. Alternatively, could convert 
+    # a logical vector index into an explicit index
+    :( $(h)[$(ex.i)[$(i)]] )
+end
+
 
 ##########################################################################
 #
@@ -245,6 +263,18 @@ function compose_rhs_kernel(ctx::ScalarContext, ex::TGeneralVar, t::Symbol, i::S
     fun_call(qname(:get_value), t, i, j)
 end
 
+# TGeneralRef1
+
+function setup_rhs(ctx::ScalarContext, ex::TGeneralRef1)
+    (init, h) = setup_lhs(ctx, ex)
+    siz = vec_size_inference(h, ex.i)
+    ty = fun_call(:eltype, h)
+    final = nothing
+    (init, siz, ty, final, h)
+end
+
+compose_rhs_kernel(ctx::ScalarContext, ex::TGeneralRef1, h::Symbol,
+    i::Symbol) = compose_lhs_kernel(ctx, ex, h, i)
 
 # TRef1D, TRefCol, TRefRow
 

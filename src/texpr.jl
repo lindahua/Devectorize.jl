@@ -94,11 +94,10 @@ end
 == (a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
 != (a::TInterval, b::TInterval) = !(a == b)
 
-type TGeneralRef1 <: TGeneralVar
+type TGeneralRef1 <: TRef
     host::TGeneralVar
     i::Any
 end
-ju_expr(tx::TGeneralRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
 
 == (a::TGeneralRef1, b::TGeneralRef1) = (a.host == b.host) && (a.i == b.i)
 != (a::TGeneralRef1, b::TGeneralRef1) = !(a == b)
@@ -243,6 +242,9 @@ tmode(ex::TRef1D) = EWiseMode{1}()
 tmode(ex::TRef2D) = EWiseMode{2}()
 tmode(ex::TRefCol) = EWiseMode{1}()
 tmode(ex::TRefRow) = EWiseMode{1}()
+tmode(ex::TGeneralRef1) = EWiseMode{1}()
+# might need a third ewise mode type for possible logical indexing
+# tmode(ex::TGeneralRef1) = EWiseMode{3}()
 
 tmode(ex::TMap) = ex.mode
 tmode(ex::TReduc) = isa(ex.arg_mode, ScalarMode) ? ScalarMode() : ReducMode()
