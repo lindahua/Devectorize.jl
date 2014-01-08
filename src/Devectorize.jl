@@ -14,7 +14,7 @@ export
     TExpr, TEWise, TScalar, TGeneralVar, TFunCall,
     TEmpty, TNum, TScalarVar, TVar, TQVar, TGeneralScalar,
     TRef, TIndex, TRange, TColon, TInterval,
-    TGeneralRef1, TGeneralRef2, TRef1D, TRef2D, TRefRow, TRefCol,
+    TGeneralRef1, TGeneralRef2, TScalarRef1, TRef1D, TRef2D, TRefRow, TRefCol,
     TMap, TReduc, TColwiseReduc, TRowwiseReduc,
     TLValue, TRValue, TAssign, TBlock,
 

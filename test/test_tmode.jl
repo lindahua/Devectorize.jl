@@ -35,9 +35,9 @@ end
 
 # reference
 
-@test_te a[1]       TGeneralRef1    EWiseMode{0}()
-@test_te a[i]       TGeneralRef1    EWiseMode{0}()
-@test_te a.b[i]     TGeneralRef1    EWiseMode{0}()
+@test_te a[1]       TScalarRef1     EWiseMode{0}()
+@test_te a[i]       TGeneralRef1    EWiseMode{1}()
+@test_te a.b[i]     TGeneralRef1    EWiseMode{1}()
 @test_te a[:]       TRef1D          EWiseMode{1}()
 @test_te a.b[:]     TRef1D          EWiseMode{1}()
 @test_te a[:,1]     TRefCol         EWiseMode{1}()

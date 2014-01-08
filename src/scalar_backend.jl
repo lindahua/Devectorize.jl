@@ -247,7 +247,7 @@ function compose_rhs_kernel(ctx::ScalarContext, ex::TScalarVar, info::Nothing, i
     ex.name
 end
 
-# other TGeneralVar (e.g. TGeneralRef1, TGeneralRef2)
+# other TGeneralVar (e.g. TScalarRef1, TGeneralRef2)
 
 function setup_rhs(ctx::ScalarContext, ex::TGeneralVar)
     t = gensym("t")

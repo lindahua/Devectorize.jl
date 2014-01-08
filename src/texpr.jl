@@ -94,10 +94,21 @@ end
 == (a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
 != (a::TInterval, b::TInterval) = !(a == b)
 
+# an integer index
+type TScalarRef1 <: TGeneralVar
+    host::TGeneralVar
+    i::Any
+end
+ju_expr(tx::TScalarRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
+
+== (a::TScalarRef1, b::TScalarRef1) = (a.host == b.host) && (a.i == b.i)
+!= (a::TScalarRef1, b::TScalarRef1) = !(a == b)
+
 type TGeneralRef1 <: TRef
     host::TGeneralVar
     i::Any
 end
+ju_expr(tx::TGeneralRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
 
 == (a::TGeneralRef1, b::TGeneralRef1) = (a.host == b.host) && (a.i == b.i)
 != (a::TGeneralRef1, b::TGeneralRef1) = !(a == b)
@@ -237,14 +248,13 @@ tmode_num{D}(::EWiseMode{D}) = D
 
 tmode(ex::TScalar) = ScalarMode()
 tmode(ex::TGeneralVar) = EWiseMode{0}()
+tmode(ex::TScalarRef1) = EWiseMode{0}() # TODO: check this
 
 tmode(ex::TRef1D) = EWiseMode{1}()
 tmode(ex::TRef2D) = EWiseMode{2}()
 tmode(ex::TRefCol) = EWiseMode{1}()
 tmode(ex::TRefRow) = EWiseMode{1}()
 tmode(ex::TGeneralRef1) = EWiseMode{1}()
-# might need a third ewise mode type for possible logical indexing
-# tmode(ex::TGeneralRef1) = EWiseMode{3}()
 
 tmode(ex::TMap) = ex.mode
 tmode(ex::TReduc) = isa(ex.arg_mode, ScalarMode) ? ScalarMode() : ReducMode()
@@ -353,6 +363,7 @@ function tref_arg(ex::Expr)
 end
 
 tref(x::TGeneralVar, i::Any) = TGeneralRef1(x, i)
+tref(x::TGeneralVar, i::Int) = TScalarRef1(x, i)
 tref(x::TGeneralVar, r::TRange) = TRef1D(x, r)
 
 tref(x::TGeneralVar, i::Any, j::Any) = TGeneralRef2(x, i, j)

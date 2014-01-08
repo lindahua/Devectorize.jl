@@ -68,7 +68,7 @@ a = A1(A2(4.5))
 a = [10 20 30; 40 50 60]
 
 ex = texpr(:(a[1]))
-@test isa(ex, TGeneralRef1)
+@test isa(ex, TScalarRef1)
 @test ex.host == tvar(:a)
 @test ex.i == 1
 @test ex == tref(:(a[1]))
@@ -118,7 +118,7 @@ ex = texpr(:(a[x,y]))
 a = A1(a)
 
 ex = texpr(:(a.b[2]))
-@test isa(ex, TGeneralRef1)
+@test isa(ex, TScalarRef1)
 @test ex.host == tqvar(:(a.b))
 @test ex.i == 2
 @test ex == tref(:(a.b[2]))
