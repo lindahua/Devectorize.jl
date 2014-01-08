@@ -266,6 +266,10 @@ function compose_rhs_kernel(ctx::ScalarContext, ex::TGeneralVar, t::Symbol, i::S
     fun_call(qname(:get_value), t, i, j)
 end
 
+# TScalarRef1
+
+compose_rhs_kernel(ctx::ScalarContext, ex::TScalarRef1, t::Symbol, i::Symbol) = t
+
 # TGeneralRef1
 
 function setup_rhs(ctx::ScalarContext, ex::TGeneralRef1)
@@ -277,8 +281,10 @@ function setup_rhs(ctx::ScalarContext, ex::TGeneralRef1)
     (init, siz, ty, final, info)
 end
 
-compose_rhs_kernel(ctx::ScalarContext, ex::TGeneralRef1, info,
-    i::Symbol) = compose_lhs_kernel(ctx, ex, info, i)
+function compose_rhs_kernel(ctx::ScalarContext, ex::TGeneralRef1, info, i::Symbol)
+    (h, I) = info
+    :( $(h)[$(fun_call(qname(:get_value), I, i))] )
+end
 
 # TRef1D, TRefCol, TRefRow
 
@@ -377,8 +383,8 @@ end
 function compile(ctx::ScalarContext, mode::ScalarMode, ex::TAssign)
     lhs = ex.lhs
     rhs = ex.rhs
-    @assert isa(lhs, TVar) || isa(lhs, TScalarVar)
-    assignment(lhs.name, ju_expr(rhs))
+    @assert isa(lhs, TVar) || isa(lhs, TScalarVar) || isa(lhs, TScalarRef1)
+    assignment(ju_expr(lhs), ju_expr(rhs))
 end
 
 
@@ -389,7 +395,7 @@ function compile(ctx::ScalarContext, mode::EWiseMode{0}, ex::TAssign)
     lhs = ex.lhs
     rhs = ex.rhs
 
-    # lhs must be TVar, otherwise mode would be either EWiseMode{0} or EWiseMode{1}
+    # lhs must be TVar, otherwise mode would be either EWiseMode{1} or EWiseMode{2}
     @assert isa(lhs, TVar)
 
     # setup rhs

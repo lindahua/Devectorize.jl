@@ -94,8 +94,7 @@ end
 == (a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
 != (a::TInterval, b::TInterval) = !(a == b)
 
-# an integer index
-type TScalarRef1 <: TGeneralVar
+type TScalarRef1 <: TGeneralVar # or TGeneralScalar??
     host::TGeneralVar
     i::Any
 end
@@ -247,8 +246,8 @@ end
 tmode_num{D}(::EWiseMode{D}) = D
 
 tmode(ex::TScalar) = ScalarMode()
+tmode(ex::TScalarRef1) = ScalarMode() # this should potentially be EWiseMode{0}()
 tmode(ex::TGeneralVar) = EWiseMode{0}()
-tmode(ex::TScalarRef1) = EWiseMode{0}() # TODO: check this
 
 tmode(ex::TRef1D) = EWiseMode{1}()
 tmode(ex::TRef2D) = EWiseMode{2}()
