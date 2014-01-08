@@ -383,7 +383,7 @@ end
 function compile(ctx::ScalarContext, mode::ScalarMode, ex::TAssign)
     lhs = ex.lhs
     rhs = ex.rhs
-    @assert isa(lhs, TVar) || isa(lhs, TScalarVar) || isa(lhs, TScalarRef1)
+    @assert isa(lhs, TVar) || isa(lhs, TScalarVar)# || isa(lhs, TScalarRef1)
     assignment(ju_expr(lhs), ju_expr(rhs))
 end
 
@@ -448,7 +448,9 @@ function compile(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
         init_lhs = code_block(
             assignment(siz, rhs_siz),
             assignment(ty, rhs_ty),
-            assignment(lhs.name, fun_call(:Array, ty, siz))
+            if_statement( :($siz == (1,)), 
+                assignment(lhs.name, fun_call(:zero, ty)),
+                assignment(lhs.name, fun_call(:Array, ty, siz)))
         )
 
         lhs_pre = init_lhs

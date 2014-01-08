@@ -246,7 +246,7 @@ end
 tmode_num{D}(::EWiseMode{D}) = D
 
 tmode(ex::TScalar) = ScalarMode()
-tmode(ex::TScalarRef1) = ScalarMode() # this should potentially be EWiseMode{0}()
+tmode(ex::TScalarRef1) = EWiseMode{0}()
 tmode(ex::TGeneralVar) = EWiseMode{0}()
 
 tmode(ex::TRef1D) = EWiseMode{1}()
