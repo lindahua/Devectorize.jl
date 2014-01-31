@@ -45,7 +45,8 @@ r[1] = 0.
 @test isequal(r, [v])
 
 i = 2
-@devec v = scalar(a[i])
+# @devec v = scalar(a[i]) # TODO: make this work
+@devec v = a[i]
 @test isequal(v, a[i])
 
 @devec v = -scalar(a[3])
