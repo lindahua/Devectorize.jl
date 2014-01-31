@@ -196,6 +196,35 @@ rr[u:v] = b[2:5]
 @test isequal(r, rr)
 
 
+###########################################################
+#
+#   vector references
+#
+###########################################################
+
+# integer vector
+r[:] = a
+rr[:] = a
+u = 1:2:length(r)
+@devec r[u] = 1
+rr[u] = 1
+@test isequal(r, rr)
+
+@devec r[u] = b[u]
+rr[u] = b[u]
+@test isequal(r, rr)
+
+# logical vector
+r[:] = a
+rr[:] = a
+u = [isodd(x) for x=1:length(r)]
+@devec r[u] = 1
+rr[u] = 1
+@test isequal(r, rr)
+
+@devec r[u] = b[u]
+rr[u] = b[u]
+@test isequal(r, rr)
 
 ###########################################################
 #
