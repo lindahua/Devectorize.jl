@@ -217,7 +217,7 @@ rr[u] = b[u]
 # logical vector
 r[:] = a
 rr[:] = a
-u = [isodd(x) for x=1:length(r)]
+u = Bool[isodd(x) for x=1:length(r)]
 @devec r[u] = 1
 rr[u] = 1
 @test isequal(r, rr)
@@ -239,7 +239,7 @@ j = 2
 @devec r = abc[:,1]
 @test isequal(r, a)
 
-@devec r = abc[1:,1]
+@devec r = abc[1:end,1]
 @test isequal(r, a)
 
 @devec r = abc[1:5,1]
@@ -248,7 +248,7 @@ j = 2
 @devec r = abc[:,j]
 @test isequal(r, b)
 
-@devec r = abc[1:,j]
+@devec r = abc[1:end,j]
 @test isequal(r, b)
 
 @devec r = abc[1:5,j]
@@ -528,8 +528,8 @@ v = 7
 @devec r = B[u:end,:]
 @test isequal(r, B[u:end,:])
 
-@devec r = B[u:,2:end]
-@test isequal(r, B[u:,2:end])
+@devec r = B[u:end,2:end]
+@test isequal(r, B[u:end,2:end])
 
 @devec r = B[u:end,2:5]
 @test isequal(r, B[u:end,2:5])
@@ -661,8 +661,8 @@ rr[:,u:v] = B[:,u:v]
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[2:,u:v] = B[2:,u:v]
-rr[2:,u:v] = B[2:,u:v]
+@devec r[2:end,u:v] = B[2:end,u:v]
+rr[2:end,u:v] = B[2:end,u:v]
 @test isequal(r, rr)
 
 r = zeros(size(B))

@@ -351,7 +351,7 @@ function tref_arg(ex::Expr)
         if isa(a2, Int)
             last = a2
         elseif isa(a2, Symbol)
-            last = a2 == :(:) ? nothing : a2
+            last = (a2 == :(:) || a2 == symbol("end")) ? nothing : a2
         else
             check_ref_validity(ex, false)
         end
