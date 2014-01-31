@@ -395,15 +395,33 @@ function compile(ctx::ScalarContext, mode::EWiseMode{0}, ex::TAssign)
     lhs = ex.lhs
     rhs = ex.rhs
 
-    # lhs must be TVar, otherwise mode would be either EWiseMode{1} or EWiseMode{2}
-    @assert isa(lhs, TVar)
+    @assert isa(lhs, TVar) || isa(lhs, TRef)
 
     # setup rhs
 
     (rhs_init, rhs_siz, rhs_ty, rhs_final, rhs_info) = setup_rhs(ctx, rhs)
 
+    # setup lhs
+
     @gensym siz ty len i
-    kernel = compose_kernel(ctx, ex, nothing, rhs_info, i)
+    if isa(lhs, TVar)
+        init_lhs = code_block(
+            assignment(siz, rhs_siz),
+            assignment(ty, rhs_ty),
+            assignment(lhs.name, fun_call(:Array, ty, siz))
+        )
+
+        lhs_pre = init_lhs
+        lhs_info = nothing
+    else
+        (lhs_pre, lhs_info) = setup_lhs(ctx, lhs)
+    end
+
+    get_len = assignment(len, length_getter(ctx, lhs, lhs_info))
+
+    kernel = compose_kernel(ctx, ex, lhs_info, rhs_info, i)
+
+    main_loop = for_statement(i, 1, len, kernel)
 
     # integrate
 
@@ -412,13 +430,12 @@ function compile(ctx::ScalarContext, mode::EWiseMode{0}, ex::TAssign)
         assignment(siz, rhs_siz),
         if_statement( :($siz == ()),
             code_block( # scalar
-                assignment(lhs.name, ju_expr(rhs))
+                assignment(ju_expr(lhs), ju_expr(rhs))
             ),
             flatten_code_block( # ewise 1D
-                assignment(ty, rhs_ty),
-                assignment(lhs.name, fun_call(:Array, ty, siz)),
-                assignment(len, fun_call(:length, lhs.name)),
-                for_statement(i, 1, len, kernel),
+                lhs_pre,
+                get_len,
+                main_loop,
                 rhs_final
             )
         )
@@ -448,7 +465,7 @@ function compile(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
         init_lhs = code_block(
             assignment(siz, rhs_siz),
             assignment(ty, rhs_ty),
-            if_statement( :($siz == ()),
+            if_statement( :($siz == ()), # TODO: can we drop this check?
                 assignment(lhs.name, fun_call(:zero, ty)),
                 assignment(lhs.name, fun_call(:Array, ty, siz)))
         )
