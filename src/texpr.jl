@@ -94,6 +94,7 @@ end
 == (a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
 != (a::TInterval, b::TInterval) = !(a == b)
 
+# integer index
 type TScalarRef1 <: TGeneralVar # or TGeneralScalar??
     host::TGeneralVar
     i::Any
@@ -248,12 +249,12 @@ tmode_num{D}(::EWiseMode{D}) = D
 tmode(ex::TScalar) = ScalarMode()
 tmode(ex::TScalarRef1) = EWiseMode{0}()
 tmode(ex::TGeneralVar) = EWiseMode{0}()
+tmode(ex::TGeneralRef1) = EWiseMode{0}()
 
 tmode(ex::TRef1D) = EWiseMode{1}()
 tmode(ex::TRef2D) = EWiseMode{2}()
 tmode(ex::TRefCol) = EWiseMode{1}()
 tmode(ex::TRefRow) = EWiseMode{1}()
-tmode(ex::TGeneralRef1) = EWiseMode{1}()
 
 tmode(ex::TMap) = ex.mode
 tmode(ex::TReduc) = isa(ex.arg_mode, ScalarMode) ? ScalarMode() : ReducMode()

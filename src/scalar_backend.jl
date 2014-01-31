@@ -275,7 +275,7 @@ compose_rhs_kernel(ctx::ScalarContext, ex::TScalarRef1, t::Symbol, i::Symbol) = 
 function setup_rhs(ctx::ScalarContext, ex::TGeneralRef1)
     (init, info) = setup_lhs(ctx, ex)
     (h, I) = info
-    siz = vec_size_inference(h, I)
+    siz = fun_call(:size, I)
     ty = fun_call(:eltype, h)
     final = nothing
     (init, siz, ty, final, info)
@@ -378,12 +378,12 @@ end
 #
 ##########################################################################
 
-# Scalar mode (the result is sured to be a scalar)
+# Scalar mode (the result is sure to be a scalar)
 
 function compile(ctx::ScalarContext, mode::ScalarMode, ex::TAssign)
     lhs = ex.lhs
     rhs = ex.rhs
-    @assert isa(lhs, TVar) || isa(lhs, TScalarVar)# || isa(lhs, TScalarRef1)
+    @assert isa(lhs, TVar) || isa(lhs, TScalarVar)
     assignment(ju_expr(lhs), ju_expr(rhs))
 end
 
@@ -448,7 +448,7 @@ function compile(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
         init_lhs = code_block(
             assignment(siz, rhs_siz),
             assignment(ty, rhs_ty),
-            if_statement( :($siz == (1,)), 
+            if_statement( :($siz == ()),
                 assignment(lhs.name, fun_call(:zero, ty)),
                 assignment(lhs.name, fun_call(:Array, ty, siz)))
         )
