@@ -11,7 +11,7 @@ In many programming languages (including Julia), expressions are immediately eva
 r = a .* b + c .* d + a
 ```
 
-With immediate evaluation, three temporaries, respectively for storing the results of ``a .* b``, ``c .*d ``, and ``a .* b + c .* d``. Also, the array ``a`` will be traversed twice. Moreover, computation on large arrays is often memory-bound -- the run-time performance largely depends on how many times you have to scan the arrays. 
+With immediate evaluation, three temporaries, respectively for storing the results of ``a .* b``, ``c .* d ``, and ``a .* b + c .* d``. Also, the array ``a`` will be traversed twice. Moreover, computation on large arrays is often memory-bound -- the run-time performance largely depends on how many times you have to scan the arrays. 
 
 For the formula above, a much more efficient way to evaluate it can be expressed using for-loops as follows
 
