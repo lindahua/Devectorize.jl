@@ -490,7 +490,7 @@ function tcall(ex::Expr)
     if !isa(fsym, Symbol)
         throw(DeError("call-expressions with non-symbol function name: $fsym"))
     end
-    tcall(fsym, map(texpr, ex.args[2:]))
+    tcall(fsym, map(texpr, ex.args[2:end]))
 end
 
 function tcomparison(ex::Expr)
