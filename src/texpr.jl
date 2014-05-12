@@ -109,6 +109,7 @@ type TGeneralRef1 <: TRef
     i::Any
 end
 ju_expr(tx::TGeneralRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
+as_scalar(a::TGeneralRef1) = TGeneralScalar(ju_expr(a))
 
 == (a::TGeneralRef1, b::TGeneralRef1) = (a.host == b.host) && (a.i == b.i)
 != (a::TGeneralRef1, b::TGeneralRef1) = !(a == b)
@@ -119,6 +120,7 @@ type TGeneralRef2 <: TGeneralVar
     j::Any
 end
 ju_expr(tx::TGeneralRef2) = :( $(ju_expr(tx.host))[$(tx.i), $(tx.j)] )
+as_scalar(a::TGeneralRef2) = TGeneralScalar(ju_expr(a))
 
 == (a::TGeneralRef2, b::TGeneralRef2) = (a.host == b.host) && (a.i == b.i) && (a.j == b.j)
 != (a::TGeneralRef2, b::TGeneralRef2) = !(a == b)
