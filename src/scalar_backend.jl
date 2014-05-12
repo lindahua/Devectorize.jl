@@ -465,9 +465,7 @@ function compile(ctx::ScalarContext, mode::EWiseMode{1}, ex::TAssign)
         init_lhs = code_block(
             assignment(siz, rhs_siz),
             assignment(ty, rhs_ty),
-            if_statement( :($siz == ()), # TODO: can we drop this check?
-                assignment(lhs.name, fun_call(:zero, ty)),
-                assignment(lhs.name, fun_call(:Array, ty, siz)))
+            assignment(lhs.name, fun_call(:Array, ty, siz))
         )
 
         lhs_pre = init_lhs
