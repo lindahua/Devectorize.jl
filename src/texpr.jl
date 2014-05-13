@@ -94,11 +94,22 @@ end
 == (a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
 != (a::TInterval, b::TInterval) = !(a == b)
 
-type TGeneralRef1 <: TGeneralVar
+# integer index
+type TScalarRef1 <: TGeneralVar # or TGeneralScalar??
+    host::TGeneralVar
+    i::Any
+end
+ju_expr(tx::TScalarRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
+
+== (a::TScalarRef1, b::TScalarRef1) = (a.host == b.host) && (a.i == b.i)
+!= (a::TScalarRef1, b::TScalarRef1) = !(a == b)
+
+type TGeneralRef1 <: TRef
     host::TGeneralVar
     i::Any
 end
 ju_expr(tx::TGeneralRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
+as_scalar(a::TGeneralRef1) = TGeneralScalar(ju_expr(a))
 
 == (a::TGeneralRef1, b::TGeneralRef1) = (a.host == b.host) && (a.i == b.i)
 != (a::TGeneralRef1, b::TGeneralRef1) = !(a == b)
@@ -109,6 +120,7 @@ type TGeneralRef2 <: TGeneralVar
     j::Any
 end
 ju_expr(tx::TGeneralRef2) = :( $(ju_expr(tx.host))[$(tx.i), $(tx.j)] )
+as_scalar(a::TGeneralRef2) = TGeneralScalar(ju_expr(a))
 
 == (a::TGeneralRef2, b::TGeneralRef2) = (a.host == b.host) && (a.i == b.i) && (a.j == b.j)
 != (a::TGeneralRef2, b::TGeneralRef2) = !(a == b)
@@ -237,7 +249,9 @@ end
 tmode_num{D}(::EWiseMode{D}) = D
 
 tmode(ex::TScalar) = ScalarMode()
+tmode(ex::TScalarRef1) = EWiseMode{0}()
 tmode(ex::TGeneralVar) = EWiseMode{0}()
+tmode(ex::TGeneralRef1) = EWiseMode{0}()
 
 tmode(ex::TRef1D) = EWiseMode{1}()
 tmode(ex::TRef2D) = EWiseMode{2}()
@@ -339,7 +353,7 @@ function tref_arg(ex::Expr)
         if isa(a2, Int)
             last = a2
         elseif isa(a2, Symbol)
-            last = a2 == :(:) ? nothing : a2
+            last = (a2 == :(:) || a2 == symbol("end")) ? nothing : a2
         else
             check_ref_validity(ex, false)
         end
@@ -351,6 +365,7 @@ function tref_arg(ex::Expr)
 end
 
 tref(x::TGeneralVar, i::Any) = TGeneralRef1(x, i)
+tref(x::TGeneralVar, i::Int) = TScalarRef1(x, i)
 tref(x::TGeneralVar, r::TRange) = TRef1D(x, r)
 
 tref(x::TGeneralVar, i::Any, j::Any) = TGeneralRef2(x, i, j)

@@ -102,7 +102,7 @@ j = 1
 @devec r = a[:]
 @test isequal(r, a)
 
-@devec r = a[1:]
+@devec r = a[1:end]
 @test isequal(r, a)
 
 @devec r = a[1:5]
@@ -112,8 +112,8 @@ v = 4
 @devec r = a[1:v]
 @test isequal(r, a[1:v])
 
-@devec r = a[3:]
-@test isequal(r, a[3:])
+@devec r = a[3:end]
+@test isequal(r, a[3:end])
 
 @devec r = a[3:6]
 @test isequal(r, a[3:6])
@@ -123,8 +123,8 @@ v = 7
 @test isequal(r, a[3:v])
 
 u = 2
-@devec r = a[u:]
-@test isequal(r, a[u:])
+@devec r = a[u:end]
+@test isequal(r, a[u:end])
 
 @devec r = a[u:6]
 @test isequal(r, a[u:6])
@@ -156,29 +156,29 @@ rr[3:6] = b[2:5]
 u = 1
 
 r = zeros(size(a))
-@devec r[1:] = b[u:]
+@devec r[1:end] = b[u:end]
 rr = zeros(size(a))
-rr[1:] = b[u:]
+rr[1:end] = b[u:end]
 @test isequal(r, rr)
 
 r = zeros(size(a))
-@devec r[u:] = b[:]
+@devec r[u:end] = b[:]
 rr = zeros(size(a))
-rr[u:] = b[:]
+rr[u:end] = b[:]
 @test isequal(r, rr)
 
 u = 2
 
 r = zeros(size(a))
-@devec r[2:] = b[u:]
+@devec r[2:end] = b[u:end]
 rr = zeros(size(a))
-rr[2:] = b[u:]
+rr[2:end] = b[u:end]
 @test isequal(r, rr)
 
 r = zeros(size(a))
-@devec r[u:] = b[2:]
+@devec r[u:end] = b[2:end]
 rr = zeros(size(a))
-rr[u:] = b[2:]
+rr[u:end] = b[2:end]
 @test isequal(r, rr)
 
 u, v = 4, 7
@@ -196,6 +196,35 @@ rr[u:v] = b[2:5]
 @test isequal(r, rr)
 
 
+###########################################################
+#
+#   vector references
+#
+###########################################################
+
+# integer vector
+r[:] = a
+rr[:] = a
+u = 1:2:length(r)
+@devec r[u] = 1
+rr[u] = 1
+@test isequal(r, rr)
+
+@devec r[u] = b[u]
+rr[u] = b[u]
+@test isequal(r, rr)
+
+# logical vector
+r[:] = a
+rr[:] = a
+u = Bool[isodd(x) for x=1:length(r)]
+@devec r[u] = 1
+rr[u] = 1
+@test isequal(r, rr)
+
+@devec r[u] = b[u]
+rr[u] = b[u]
+@test isequal(r, rr)
 
 ###########################################################
 #
@@ -210,7 +239,7 @@ j = 2
 @devec r = abc[:,1]
 @test isequal(r, a)
 
-@devec r = abc[1:,1]
+@devec r = abc[1:end,1]
 @test isequal(r, a)
 
 @devec r = abc[1:5,1]
@@ -219,7 +248,7 @@ j = 2
 @devec r = abc[:,j]
 @test isequal(r, b)
 
-@devec r = abc[1:,j]
+@devec r = abc[1:end,j]
 @test isequal(r, b)
 
 @devec r = abc[1:5,j]
@@ -229,8 +258,8 @@ v = 4
 @devec r = abc[1:v,1]
 @test isequal(r, a[1:v])
 
-@devec r = abc[3:,1]
-@test isequal(r, a[3:])
+@devec r = abc[3:end,1]
+@test isequal(r, a[3:end])
 
 @devec r = abc[3:6,1]
 @test isequal(r, a[3:6])
@@ -238,8 +267,8 @@ v = 4
 @devec r = abc[1:v,j]
 @test isequal(r, b[1:v])
 
-@devec r = abc[3:,j]
-@test isequal(r, b[3:])
+@devec r = abc[3:end,j]
+@test isequal(r, b[3:end])
 
 @devec r = abc[3:6,j]
 @test isequal(r, b[3:6])
@@ -252,14 +281,14 @@ v = 7
 @test isequal(r, b[3:v])
 
 u = 2
-@devec r = abc[u:,1]
-@test isequal(r, a[u:])
+@devec r = abc[u:end,1]
+@test isequal(r, a[u:end])
 
 @devec r = abc[u:6,1]
 @test isequal(r, a[u:6])
 
-@devec r = abc[u:,j]
-@test isequal(r, b[u:])
+@devec r = abc[u:end,j]
+@test isequal(r, b[u:end])
 
 @devec r = abc[u:6,j]
 @test isequal(r, b[u:6])
@@ -295,30 +324,30 @@ rr[3:6,1] = b[2:5]
 u = 1
 
 r = zeros(size(abc))
-@devec r[1:,1] = b[u:]
+@devec r[1:end,1] = b[u:end]
 rr = zeros(size(abc))
-rr[1:,1] = b[u:]
+rr[1:end,1] = b[u:end]
 @test isequal(r, rr)
 
 r = zeros(size(abc))
-@devec r[u:,1] = b[:]
+@devec r[u:end,1] = b[:]
 rr = zeros(size(abc))
-rr[u:,1] = b[:]
+rr[u:end,1] = b[:]
 @test isequal(r, rr)
 
 j = 3
 u = 2
 
 r = zeros(size(abc))
-@devec r[2:,j] = b[u:]
+@devec r[2:end,j] = b[u:end]
 rr = zeros(size(abc))
-rr[2:,j] = b[u:]
+rr[2:end,j] = b[u:end]
 @test isequal(r, rr)
 
 r = zeros(size(abc))
-@devec r[u:,j] = b[2:]
+@devec r[u:end,j] = b[2:end]
 rr = zeros(size(abc))
-rr[u:,j] = b[2:]
+rr[u:end,j] = b[2:end]
 @test isequal(r, rr)
 
 u, v = 4, 7
@@ -349,8 +378,8 @@ i = 2
 @devec r = abct[1,:]
 @test isequal(r, at)
 
-@devec r = abct[1,1:]
-@test isequal(r, abct[1,1:])
+@devec r = abct[1,1:end]
+@test isequal(r, abct[1,1:end])
 
 @devec r = abct[1,1:5]
 @test isequal(r, abct[1,1:5])
@@ -358,8 +387,8 @@ i = 2
 @devec r = abct[i,:]
 @test isequal(r, abct[i,:])
 
-@devec r = abct[i,1:]
-@test isequal(r, abct[i,1:])
+@devec r = abct[i,1:end]
+@test isequal(r, abct[i,1:end])
 
 @devec r = abct[i,1:5]
 @test isequal(r, abct[i,1:5])
@@ -368,8 +397,8 @@ v = 4
 @devec r = abct[1,1:v]
 @test isequal(r, abct[1,1:v])
 
-@devec r = abct[1,3:]
-@test isequal(r, abct[1,3:])
+@devec r = abct[1,3:end]
+@test isequal(r, abct[1,3:end])
 
 @devec r = abct[1,3:6]
 @test isequal(r, abct[1,3:6])
@@ -377,8 +406,8 @@ v = 4
 @devec r = abct[i,1:v]
 @test isequal(r, abct[i,1:v])
 
-@devec r = abct[i,3:]
-@test isequal(r, abct[i,3:])
+@devec r = abct[i,3:end]
+@test isequal(r, abct[i,3:end])
 
 @devec r = abct[i,3:6]
 @test isequal(r, abct[i,3:6])
@@ -391,14 +420,14 @@ v = 7
 @test isequal(r, abct[i,3:v])
 
 u = 2
-@devec r = abct[1,u:]
-@test isequal(r, abct[1,u:])
+@devec r = abct[1,u:end]
+@test isequal(r, abct[1,u:end])
 
 @devec r = abct[1,u:6]
 @test isequal(r, abct[1,u:6])
 
-@devec r = abct[i,u:]
-@test isequal(r, abct[i,u:])
+@devec r = abct[i,u:end]
+@test isequal(r, abct[i,u:end])
 
 @devec r = abct[i,u:6]
 @test isequal(r, abct[i,u:6])
@@ -433,30 +462,30 @@ rr[1,3:6] = bt[2:5]
 u = 1
 
 r = zeros(size(abct))
-@devec r[1,1:] = bt[u:]
+@devec r[1,1:end] = bt[u:end]
 rr = zeros(size(abct))
-rr[1,1:] = bt[u:]
+rr[1,1:end] = bt[u:end]
 @test isequal(r, rr)
 
 r = zeros(size(abct))
-@devec r[1,u:] = bt[:]
+@devec r[1,u:end] = bt[:]
 rr = zeros(size(abct))
-rr[1,u:] = bt[:]
+rr[1,u:end] = bt[:]
 @test isequal(r, rr)
 
 i = 2
 u = 2
 
 r = zeros(size(abct))
-@devec r[i,2:] = bt[u:]
+@devec r[i,2:end] = bt[u:end]
 rr = zeros(size(abct))
-rr[i,2:] = bt[u:]
+rr[i,2:end] = bt[u:end]
 @test isequal(r, rr)
 
 r = zeros(size(abct))
-@devec r[i,u:] = bt[2:]
+@devec r[i,u:end] = bt[2:end]
 rr = zeros(size(abct))
-rr[i,u:] = bt[2:]
+rr[i,u:end] = bt[2:end]
 @test isequal(r, rr)
 
 u, v = 4, 7
@@ -490,50 +519,50 @@ v = 7
 @devec r = B[:,:]
 @test isequal(r, B[:,:])
 
-@devec r = B[:,2:]
-@test isequal(r, B[:,2:])
+@devec r = B[:,2:end]
+@test isequal(r, B[:,2:end])
 
 @devec r = B[:,2:5]
 @test isequal(r, B[:,2:5])
 
-@devec r = B[u:,:]
-@test isequal(r, B[u:,:])
+@devec r = B[u:end,:]
+@test isequal(r, B[u:end,:])
 
-@devec r = B[u:,2:]
-@test isequal(r, B[u:,2:])
+@devec r = B[u:end,2:end]
+@test isequal(r, B[u:end,2:end])
 
-@devec r = B[u:,2:5]
-@test isequal(r, B[u:,2:5])
+@devec r = B[u:end,2:5]
+@test isequal(r, B[u:end,2:5])
 
 @devec r = B[u:v,:]
 @test isequal(r, B[u:v,:])
 
-@devec r = B[u:v,2:]
-@test isequal(r, B[u:v,2:])
+@devec r = B[u:v,2:end]
+@test isequal(r, B[u:v,2:end])
 
 @devec r = B[u:v,2:5]
 @test isequal(r, B[u:v,2:5])
 
-@devec r = B[2:,:]
-@test isequal(r, B[2:,:])
+@devec r = B[2:end,:]
+@test isequal(r, B[2:end,:])
 
 @devec r = B[2:5,:]
 @test isequal(r, B[2:5,:])
 
-@devec r = B[:,u:]
-@test isequal(r, B[:,u:])
+@devec r = B[:,u:end]
+@test isequal(r, B[:,u:end])
 
-@devec r = B[2:,u:]
-@test isequal(r, B[2:,u:])
+@devec r = B[2:end,u:end]
+@test isequal(r, B[2:end,u:end])
 
-@devec r = B[2:5,u:]
-@test isequal(r, B[2:5,u:])
+@devec r = B[2:5,u:end]
+@test isequal(r, B[2:5,u:end])
 
 @devec r = B[:,u:v]
 @test isequal(r, B[:,u:v])
 
-@devec r = B[2:,u:v]
-@test isequal(r, B[2:,u:v])
+@devec r = B[2:end,u:v]
+@test isequal(r, B[2:end,u:v])
 
 @devec r = B[2:5,u:v]
 @test isequal(r, B[2:5,u:v])
@@ -548,8 +577,8 @@ rr[:,:] = B[:,:]
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[:,2:] = B[:,2:]
-rr[:,2:] = B[:,2:]
+@devec r[:,2:end] = B[:,2:end]
+rr[:,2:end] = B[:,2:end]
 @test isequal(r, rr)
 
 r = zeros(size(B))
@@ -560,20 +589,20 @@ rr[:,2:5] = B[:,2:5]
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[u:,:] = B[u:,:]
-rr[u:,:] = B[u:,:]
+@devec r[u:end,:] = B[u:end,:]
+rr[u:end,:] = B[u:end,:]
 @test isequal(r, rr)
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[u:,2:] = B[u:,2:]
-rr[u:,2:] = B[u:,2:]
+@devec r[u:end,2:end] = B[u:end,2:end]
+rr[u:end,2:end] = B[u:end,2:end]
 @test isequal(r, rr)
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[u:,2:5] = B[u:,2:5]
-rr[u:,2:5] = B[u:,2:5]
+@devec r[u:end,2:5] = B[u:end,2:5]
+rr[u:end,2:5] = B[u:end,2:5]
 @test isequal(r, rr)
 
 r = zeros(size(B))
@@ -584,8 +613,8 @@ rr[u:v,:] = B[u:v,:]
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[u:v,2:] = B[u:v,2:]
-rr[u:v,2:] = B[u:v,2:]
+@devec r[u:v,2:end] = B[u:v,2:end]
+rr[u:v,2:end] = B[u:v,2:end]
 @test isequal(r, rr)
 
 r = zeros(size(B))
@@ -596,8 +625,8 @@ rr[u:v,2:5] = B[u:v,2:5]
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[2:,:] = B[2:,:]
-rr[2:,:] = B[2:,:]
+@devec r[2:end,:] = B[2:end,:]
+rr[2:end,:] = B[2:end,:]
 @test isequal(r, rr)
 
 r = zeros(size(B))
@@ -608,20 +637,20 @@ rr[2:5,:] = B[2:5,:]
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[:,u:] = B[:,u:]
-rr[:,u:] = B[:,u:]
+@devec r[:,u:end] = B[:,u:end]
+rr[:,u:end] = B[:,u:end]
 @test isequal(r, rr)
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[2:,u:] = B[2:,u:]
-rr[2:,u:] = B[2:,u:]
+@devec r[2:end,u:end] = B[2:end,u:end]
+rr[2:end,u:end] = B[2:end,u:end]
 @test isequal(r, rr)
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[2:5,u:] = B[2:5,u:]
-rr[2:5,u:] = B[2:5,u:]
+@devec r[2:5,u:end] = B[2:5,u:end]
+rr[2:5,u:end] = B[2:5,u:end]
 @test isequal(r, rr)
 
 r = zeros(size(B))
@@ -632,8 +661,8 @@ rr[:,u:v] = B[:,u:v]
 
 r = zeros(size(B))
 rr = zeros(size(B))
-@devec r[2:,u:v] = B[2:,u:v]
-rr[2:,u:v] = B[2:,u:v]
+@devec r[2:end,u:v] = B[2:end,u:v]
+rr[2:end,u:v] = B[2:end,u:v]
 @test isequal(r, rr)
 
 r = zeros(size(B))

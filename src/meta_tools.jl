@@ -129,6 +129,10 @@ end
 
 # the hyper-function to generate codes for size inference
 
+function vec_size_inference(s::Symbol, rgn::Any)
+    :( ($(length_inference(rgn)),) )
+end
+
 function vec_size_inference(s::Symbol, rgn::TColon)
     :( (length($s),) )
 end
