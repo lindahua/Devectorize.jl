@@ -56,6 +56,15 @@ immutable TReducDim <: TExpr
 end
 isscalar(te::TReducDim) = false
 
+# assignment
+immutable TAssignment <: TExpr
+    lhs::TExpr
+    rhs::TExpr
+    isscalar::Bool
+end
+TAssignment(lhs::TExpr, rhs::TExpr; isscalar::Bool=false) = TAssignment(lhs, rhs, isscalar)
+isscalar(te::TAssignment) = te.isscalar
+
 
 #################################################
 #
