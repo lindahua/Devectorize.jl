@@ -1,12 +1,6 @@
 # include all unit testing files
 
-tests = ["texpr", 
-         "tmode", 
-         "scalar_ref", 
-         "scalar_ewise",
-         "scalar_special",
-         "scalar_reduc",
-         "scalar_hybrid"]
+tests = []
 
 # extensions
 
