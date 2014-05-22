@@ -96,11 +96,11 @@ type shift_dot end
 formula(::shift_dot) = "sum( (a - mean(a)) .* (b - mean(b)) )"
 
 function vec_eval{T<:Real}(::shift_dot, a::Array{T}, b::Array{T}, c::Array{T})
-    r = sum( (a - mean(a)) .* (b - mean(b)) )
+    r = sum( (a .- mean(a)) .* (b .- mean(b)) )
 end
 
 function devec_eval{T<:Real}(::shift_dot, a::Array{T}, b::Array{T}, c::Array{T})
-    @devec r = sum( (a - mean(a)) .* (b - mean(b)) )
+    @devec r = sum( (a .- mean(a)) .* (b .- mean(b)) )
 end
 
 function hand_loop{T<:Real}(::shift_dot, a::Array{T}, b::Array{T}, c::Array{T})
