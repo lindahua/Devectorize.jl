@@ -437,22 +437,10 @@ end
 # we here hand-coded the specific form to be recognized as partial reduction
 
 function recognize_partial_reduction(f::Symbol, a::TExpr...)
-    if f == (:sum) || f == (:mean)
+    if f == (:sum) || f == (:mean) || f == (:maximum) || f == (:minimum)
         if length(a) == 2 && isa(a[2], TNum{Int})
             fargs, deps = check_funcall_args(a[1])
             dim = a[2].val
-            if dim == 1
-                TColwiseReduc(f, fargs, deps)
-            elseif dim == 2
-                TRowwiseReduc(f, fargs, deps)
-            else
-                throw(DeError("Devectorize supports either colwise or rowwise reduction."))
-            end
-        end
-    elseif f == (:max) || f == (:min)
-        if length(a) == 3 && isa(a[2], TEmpty) && isa(a[3], TNum{Int})
-            fargs, deps = check_funcall_args(a[1])
-            dim = a[3].val
             if dim == 1
                 TColwiseReduc(f, fargs, deps)
             elseif dim == 2

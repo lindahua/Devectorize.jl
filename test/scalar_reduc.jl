@@ -34,16 +34,16 @@ r = zeros(1)
 @devec r = sum(abc[:,:])
 @test isequal(r, sum(abc))
 
-@devec r = max(a)
+@devec r = maximum(a)
 @test isequal(r, maximum(a))
 
-@devec r = max(c)
+@devec r = maximum(c)
 @test isequal(r, maximum(c))
 
-@devec r = min(a)
+@devec r = minimum(a)
 @test isequal(r, minimum(a))
 
-@devec r = min(c)
+@devec r = minimum(c)
 @test isequal(r, minimum(c))
 
 @devec r = mean(a)
@@ -92,16 +92,16 @@ r0 = r
 @devec r = mean(abc, 2)
 @test isequal(r, sum(abc, 2) / size(abc, 2))
 
-@devec r = max(abc, (), 1)
+@devec r = maximum(abc, 1)
 @test isequal(r, maximum(abc, 1))
 
-@devec r = max(abc, (), 2)
+@devec r = maximum(abc, 2)
 @test isequal(r, maximum(abc, 2))
 
-@devec r = min(abc, (), 1)
+@devec r = minimum(abc, 1)
 @test isequal(r, minimum(abc, 1))
 
-@devec r = min(abc, (), 2)
+@devec r = minimum(abc, 2)
 @test isequal(r, minimum(abc, 2))
 
 @devec r = sum(sqr(abc), 1)

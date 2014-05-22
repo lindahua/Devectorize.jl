@@ -174,7 +174,7 @@ result_type(::TFun{:blend}, ::Type{Bool}, T1::Type, T2::Type) = promote_type(T1,
 
 # reduction functions
 
-for s in [ :sum, :max, :min, :mean ]
+for s in [ :sum, :maximum, :minimum, :mean ]
     @eval $(register_reductor(s, 1))
 end
 
@@ -190,13 +190,13 @@ reduc_initializer(f::TFun{:sum}, ty::Symbol) = :( zero($ty) )
 reduc_emptyval(f::TFun{:sum}, ty::Symbol) = :( zero($ty) )
 reduc_updater(f::TFun{:sum}, s::Symbol, x::Symbol) = :( $s += $x )
 
-reduc_initializer(f::TFun{:max}, ty::Symbol) = :( typemin($ty) )
-reduc_emptyval(f::TFun{:max}, ty::Symbol) = :( typemin($ty) )
-reduc_updater(f::TFun{:max}, s::Symbol, x::Symbol) = :( $s = max($s, $x) )
+reduc_initializer(f::TFun{:maximum}, ty::Symbol) = :( typemin($ty) )
+reduc_emptyval(f::TFun{:maximum}, ty::Symbol) = :( typemin($ty) )
+reduc_updater(f::TFun{:maximum}, s::Symbol, x::Symbol) = :( $s = max($s, $x) )
 
-reduc_initializer(f::TFun{:min}, ty::Symbol) = :( typemax($ty) )
-reduc_emptyval(f::TFun{:min}, ty::Symbol) = :( typemax($ty) )
-reduc_updater(f::TFun{:min}, s::Symbol, x::Symbol) = :( $s = min($s, $x) )
+reduc_initializer(f::TFun{:minimum}, ty::Symbol) = :( typemax($ty) )
+reduc_emptyval(f::TFun{:minimum}, ty::Symbol) = :( typemax($ty) )
+reduc_updater(f::TFun{:minimum}, s::Symbol, x::Symbol) = :( $s = min($s, $x) )
 
 reduc_initializer(f::TFun{:mean}, ty::Symbol) = :( zero($ty) )
 reduc_emptyval(f::TFun{:mean}, ty::Symbol) = :( nan($ty) )

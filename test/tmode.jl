@@ -159,33 +159,33 @@ end
 
 @test_te sum(a)     TReduc  ReducMode()
 @test_te mean(a)    TReduc  ReducMode()
-@test_te min(a)     TReduc  ReducMode()
-@test_te max(a)     TReduc  ReducMode()
+@test_te minimum(a) TReduc  ReducMode()
+@test_te maximum(a) TReduc  ReducMode()
 @test_te dot(a, b)  TReduc  ReducMode()
 
 @test_te sum(1)     TReduc  ScalarMode()
 @test_te mean(1)    TReduc  ScalarMode()
-@test_te min(1)     TReduc  ScalarMode()
-@test_te max(1)     TReduc  ScalarMode()
+@test_te minimum(1) TReduc  ScalarMode()
+@test_te maximum(1) TReduc  ScalarMode()
 @test_te dot(1, 2)  TReduc  ScalarMode()
 
 @test_te sum(a[:])      TReduc  ReducMode()
 @test_te mean(a[:])     TReduc  ReducMode()
-@test_te min(a[:])      TReduc  ReducMode()
-@test_te max(a[:])      TReduc  ReducMode()
+@test_te minimum(a[:])  TReduc  ReducMode()
+@test_te maximum(a[:])  TReduc  ReducMode()
 @test_te dot(a, b[:])   TReduc  ReducMode()
 @test_te sum(a.x)       TReduc  ReducMode()
 
 @test_te sum(a[:,:])        TReduc  ReducMode()
 @test_te mean(a[:,:])       TReduc  ReducMode()
-@test_te min(a[:,:])        TReduc  ReducMode()
-@test_te max(a[:,:])        TReduc  ReducMode()
+@test_te minimum(a[:,:])    TReduc  ReducMode()
+@test_te maximum(a[:,:])    TReduc  ReducMode()
 @test_te dot(a, b[:,:])     TReduc  ReducMode()
 
 @test_te sum(a + b)     TReduc  ReducMode()
 @test_te mean(a + b)    TReduc  ReducMode()
-@test_te min(a + b)     TReduc  ReducMode()
-@test_te max(a + b)     TReduc  ReducMode()
+@test_te minimum(a + b)     TReduc  ReducMode()
+@test_te maximum(a + b)     TReduc  ReducMode()
 @test_te dot(a + b, c .* d)     TReduc  ReducMode()
 
 

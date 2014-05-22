@@ -648,15 +648,15 @@ ex = texpr(:(sum(a)))
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 
-ex = texpr(:(max(a)))
+ex = texpr(:(maximum(a)))
 @test isa(ex, TReduc)
-@test ex.fun == :max
+@test ex.fun == :maximum
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 
-ex = texpr(:(min(a)))
+ex = texpr(:(minimum(a)))
 @test isa(ex, TReduc)
-@test ex.fun == :min
+@test ex.fun == :minimum
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 
@@ -679,15 +679,15 @@ ex = texpr(:(sum(a, 1)))
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 
-ex = texpr(:(max(a, (), 1)))
+ex = texpr(:(maximum(a, 1)))
 @test isa(ex, TColwiseReduc)
-@test ex.fun == :max
+@test ex.fun == :maximum
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 
-ex = texpr(:(min(a, (), 1)))
+ex = texpr(:(minimum(a, 1)))
 @test isa(ex, TColwiseReduc)
-@test ex.fun == :min
+@test ex.fun == :minimum
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 
@@ -703,15 +703,15 @@ ex = texpr(:(sum(a, 2)))
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 
-ex = texpr(:(max(a, (), 2)))
+ex = texpr(:(maximum(a, 2)))
 @test isa(ex, TRowwiseReduc)
-@test ex.fun == :max
+@test ex.fun == :maximum
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 
-ex = texpr(:(min(a, (), 2)))
+ex = texpr(:(minimum(a, 2)))
 @test isa(ex, TRowwiseReduc)
-@test ex.fun == :min
+@test ex.fun == :minimum
 @test length(ex.args) == 1
 @test ex.args[1] == tvar(:a)
 

@@ -145,11 +145,11 @@ Then, the results will be directly written to ``r``, and no array will be create
 
 ```julia
 @devec r = sum(a + b)
-@devec r = max(sin(a), (), 1)
+@devec r = maximum(sin(a), 1)
 @devec r[:,j] = mean(a, 2)
 ``` 
 
-*Devectorize* currently recognizes five reduction functions ``sum``, ``max``, ``min``, ``mean``, and ``dot``.
+*Devectorize* currently recognizes five reduction functions ``sum``, ``maximum``, ``minimum``, ``mean``, and ``dot``.
 
 
 ### Hybrid expressions
@@ -175,7 +175,7 @@ Note that *Devectorize* only breaks expressions only when it is really necessary
 @devec begin
 	a = sin(x) - cos(y)
 	b = sum(a) + exp(z)
-	c = x .* y - max(b)
+	c = x .* y - maximum(b)
 end
 ```
 
