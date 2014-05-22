@@ -1,5 +1,7 @@
 ## Devectorize -- A Julia Framework for De-vectorized Evaluation
 
+[![Build Status](https://travis-ci.org/lindahua/Devectorize.jl.png?branch=master)](https://travis-ci.org/lindahua/Devectorize.jl)
+
 *Devectorize* is a Julia framework, which provides macros and functions to *de-vectorize* a vector expression. With *Devectorize*, users can write computations in high-level vectorized way and at the same time enjoying the high run-time performance of de-vectorized loops. *Devectorize* automatically translates vectorized expressions into faster tight-loops, which often results in 2x - 8x performance gain. 
 
 
