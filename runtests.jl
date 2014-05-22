@@ -1,7 +1,21 @@
 # include all unit testing files
 
-include("test_texpr.jl")
-include("test_tmode.jl")
+tests = ["texpr", 
+         "tmode", 
+         "scalar_ref", 
+         "scalar_ewise",
+         "scalar_special",
+         "scalar_reduc",
+         "scalar_hybrid"]
 
-include("test_scalar_backend.jl")
-#include("test_extensions.jl")
+# extensions
+
+println("Testing Devectorize.jl")
+println("---------------------------")
+
+for t in tests
+    fp = joinpath("test", "$(t).jl")
+    println("* running $(fp) ...")
+    include(fp)
+end
+
