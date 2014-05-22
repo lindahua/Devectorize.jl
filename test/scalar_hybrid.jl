@@ -27,7 +27,7 @@ abct = [at, bt, ct]
 @test isequal(r, sqrt(sum(a .* a)))
 
 @devec r = sum(abc, 1) + max(c) .* cv
-@test isequal(r, sum(abc, 1) + max(c) .* cv)
+@test isequal(r, sum(abc, 1) .+ maximum(c) .* cv)
 
-@devec r = sum(max(abc, (), 2)) + sum(abct, 1) .* (cv + max(b))
-@test isequal(r, sum(max(abc, (), 2)) + sum(abct, 1) .* (cv + max(b)) )
+@devec r = sum(max(abc, (), 2)) + sum(abct, 1) .* (cv .+ max(b))
+@test isequal(r, sum(maximum(abc, 2)) .+ sum(abct, 1) .* (cv .+ maximum(b)) )

@@ -42,18 +42,18 @@ r[:] = 0.
 @test isequal(r, a + b)
 
 @devec r = a + 1.
-@test isequal(r, a + 1.)
+@test isequal(r, a .+ 1.)
 
 r[:] = 0.
 @devec r[:] = a + 1.
-@test isequal(r, a + 1.)
+@test isequal(r, a .+ 1.)
 
 @devec r = 1. + b
-@test isequal(r, 1. + b)
+@test isequal(r, 1. .+ b)
 
 r[:] = 0.
 @devec r[:] = 1. + b
-@test isequal(r, 1. + b)
+@test isequal(r, 1. .+ b)
 
 @devec r[:] = 1. + 2.
 @test isequal(r, fill(3., size(a)))
@@ -68,46 +68,46 @@ r[:] = 0.
 @test isequal(r, a + b + c)
 
 @devec r = +(1., b, c)
-@test isequal(r, 1. + b + c)
+@test isequal(r, 1. .+ b .+ c)
 
 r[:] = 0.
 @devec r[:] = +(1., b, c)
-@test isequal(r, 1. + b + c)
+@test isequal(r, 1. .+ b .+ c)
 
 @devec r = +(a, 2., c)
-@test isequal(r, a + 2. + c)
+@test isequal(r, a .+ 2. .+ c)
 
 r[:] = 0.
 @devec r[:] = +(a, 2., c)
-@test isequal(r, a + 2. + c)
+@test isequal(r, a .+ 2. .+ c)
 
 @devec r = +(a, b, 3.)
-@test isequal(r, a + b + 3.)
+@test isequal(r, a .+ b .+ 3.)
 
 r[:] = 0.
 @devec r[:] = +(a, b, 3.)
-@test isequal(r, a + b + 3.)
+@test isequal(r, a .+ b .+ 3.)
 
 @devec r = +(1., 2., c)
-@test isequal(r, 1. + 2. + c)
+@test isequal(r, 1. .+ 2. .+ c)
 
 r[:] = 0.
 @devec r[:] = +(1., 2., c)
-@test isequal(r, 1. + 2. + c)
+@test isequal(r, 1. .+ 2. .+ c)
 
 @devec r = +(1., b, 3.)
-@test isequal(r, 1. + b + 3.)
+@test isequal(r, 1. .+ b .+ 3.)
 
 r[:] = 0.
 @devec r[:] = +(1., b, 3.)
-@test isequal(r, 1. + b + 3.)
+@test isequal(r, 1. .+ b .+ 3.)
 
 @devec r = +(a, 2., 3.)
-@test isequal(r, a + 2. + 3.)
+@test isequal(r, a .+ 2. .+ 3.)
 
 r[:] = 0.
 @devec r[:] = +(a, 2., 3.)
-@test isequal(r, a + 2. + 3.)
+@test isequal(r, a .+ 2. .+ 3.)
 
 @devec r[:] = +(1., 2., 3.)
 @test isequal(r, fill(6., size(a)))
@@ -115,19 +115,19 @@ r[:] = 0.
 
 # comparison and blend
 
-@devec r = blend(a + 2 .>= b, a + 2, b)
-@test isequal(r, max(a+2, b))
+@devec r = blend(a .+ 2 .>= b, a .+ 2, b)
+@test isequal(r, max(a .+ 2, b))
 
 r[:] = 0.
-@devec r[:] = blend(a + 2 .>= b, a + 2, b)
-@test isequal(r, max(a+2, b))
+@devec r[:] = blend(a .+ 2 .>= b, a .+ 2, b)
+@test isequal(r, max(a .+ 2, b))
 
-@devec r = blend(a + 2 .<= b, a + 2, b)
-@test isequal(r, min(a + 2, b))
+@devec r = blend(a .+ 2 .<= b, a .+ 2, b)
+@test isequal(r, min(a .+ 2, b))
 
 r[:] = 0.
-@devec r[:] = blend(a + 2 .<= b, a + 2, b)
-@test isequal(r, min(a + 2, b))
+@devec r[:] = blend(a .+ 2 .<= b, a .+ 2, b)
+@test isequal(r, min(a .+ 2, b))
 
 
 #################################################
@@ -171,12 +171,12 @@ s = S(a, b, c)
 
 j = 3
 @devec r = abc[:,1] + b[:] .* abc[:,j]
-@test isequal(r, a + b .* c)
+@test isequal(r, a .+ b .* c)
 
 r = zeros(8, 3)
 rr = zeros(size(r))
-@devec r[:,2:3] = abc[:, 1:2] + cv
-rr[:,2:3] = abc[:, 1:2] + cv
+@devec r[:,2:3] = abc[:, 1:2] .+ cv
+rr[:,2:3] = abc[:, 1:2] .+ cv
 @test isequal(r, rr)
 
 
@@ -197,10 +197,10 @@ r0 = r
 
 r = a
 @devec r .*= 2.
-@test isequal(r, a * 2)
+@test isequal(r, a .* 2)
 
 @devec r -= (c + 3)
-@test isequal(r, a * 2 - (c + 3))
+@test isequal(r, a .* 2 - (c .+ 3))
 
 
 #################################################
