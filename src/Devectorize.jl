@@ -10,7 +10,7 @@ module Internal
     # texpr.jl
     TExpr, TNum, TVar, TRef, TMap, TReduc,
     TGenericExpr, TGenericCall, TReducDim, 
-    TAssignment, TBlockExpr, 
+    TAssignment, TBlockExpr, TColon,
     texpr, rtype
 
     # source files

@@ -22,6 +22,7 @@ immutable TGenericExpr <: TExpr
 end
 TGenericExpr(x::Expr) = TGenericExpr(x, Any)
 cast(te::TGenericExpr, t::Type) = TGenericExpr(te.intern, restrict_type(te.rtype, t))
+== (x::TGenericExpr, y::TGenericExpr) = (x.intern == y.intern && x.rtype == y.rtype)
 
 # a number literal
 immutable TNum <: TExpr
@@ -80,13 +81,13 @@ cast(te::TReducDim, t::Type) = TReducDim(te.fun, te.arg, te.dim, restrict_type(t
 # reference
 
 immutable TColon <: TExpr
-    args::Vector{TExpr}
+    intern::Union(Symbol,Expr)
     rtype::Type
 end
-TColon() = TColon(TExpr[], Colon)
-TColon(args::Vector{TExpr}) = TColon(args, Range)
-cast(te::TColon, t::Type) = TColon(te.args, restrict_type(te.rtype, t))
-== (x::TColon, y::TColon) = (x.args == y.args && x.rtype == y.rtype)
+TColon() = TColon(:(:), Colon)
+TColon(x::Expr) = TColon(x, Range)
+cast(te::TColon, t::Type) = TColon(te.intern, restrict_type(te.rtype, t))
+== (x::TColon, y::TColon) = (x.intern == y.intern && x.rtype == y.rtype)
 
 immutable TRef <: TExpr
     parent::TExpr
@@ -103,12 +104,14 @@ immutable TAssignment <: TExpr
     rhs::TExpr
 end
 rtype(te::TAssignment) = rtype(te.rhs)
+== (x::TAssignment, y::TAssignment) = (x.lhs == y.lhs && x.rhs == y.rhs)
 
 # block
 immutable TBlockExpr <: TExpr
     exprs::Vector{TExpr}
 end
 rtype(te::TBlockExpr) = error("Taking rtype of a block expression is not supported.")
+== (x::TBlockExpr, y::TBlockExpr) = (x.exprs == y.exprs)
 
 
 #################################################
@@ -118,7 +121,7 @@ rtype(te::TBlockExpr) = error("Taking rtype of a block expression is not support
 #################################################
 
 texpr(x::Number) = TNum(x)
-texpr(x::Symbol) = TVar(x)
+texpr(x::Symbol) = x == :(:) ? TColon() : TVar(x)
 
 function maprtype(rtypes::Vector{Type})
     c = 0
@@ -139,6 +142,17 @@ function maprtype(rtypes::Vector{Type})
     c == 1 ? Array :
     c == 2 ? DenseArray :
     c == 3 ? AbstractArray : Any
+end
+
+function flatten_texprs!(s::Vector{TExpr}, x::Expr)
+    for a in x.args
+        if a.head == :block
+            flatten_texprs!(s, a)
+        else
+            push!(s, texpr(a))
+        end
+    end
+    s
 end
 
 function texpr(x::Expr)
@@ -176,6 +190,9 @@ function texpr(x::Expr)
             return TGenericCall(f, targs)
         end
 
+    elseif h == :(:)
+        return TColon(x)
+
     elseif h == :ref
         p = texpr(x.args[1])
         targs = TExpr[texpr(a) for a in x.args[2:end]]
@@ -184,11 +201,14 @@ function texpr(x::Expr)
     elseif h == :(=)
         @assert length(x.args) == 2
         lhs = texpr(x.args[1])
+        isa(lhs, TVar) || isa(lhs, TRef) ||
+            error("Devectorize: LHS can only be either TVar or TRef.")
+
         rhs = texpr(x.args[2])
-        return TAssignment(lhs, rhs, isscalar(lhs) || isscalar(rhs))
+        return TAssignment(lhs, rhs)
 
     elseif h == :block
-        return TBlockExpr(TExpr[texpr(a) for a in x.args])
+        return TBlockExpr(flatten_texprs!(TExpr[], x))
 
     else
         return TGenericExpr(x)

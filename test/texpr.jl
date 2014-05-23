@@ -35,6 +35,20 @@ using Base.Test
 
 @test texpr(:(prod(x, 2))) == TReducDim(:prod, TVar(:x), TNum(2))
 
+# TColon
+@test texpr(:(:)) == TColon(:(:), Colon)
+@test texpr(:(i:j)) == TColon(:(i:j), Range)
+@test texpr(:(i:j:k)) == TColon(:(i:j:k), Range)
+
 # TRef
 @test texpr(:(a[])) == TRef(TVar(:a), TExpr[])
+@test texpr(:(a[i])) == TRef(TVar(:a), TExpr[TVar(:i)])
+@test texpr(:(a[i]::Real)) == TRef(TVar(:a), TExpr[TVar(:i)], Real)
+@test texpr(:(a[i:end, :])) == TRef(TVar(:a), TExpr[TColon(:(i:end)), TColon()])
 
+# TAssignment
+@test texpr(:(a = b)) == TAssignment(TVar(:a), TVar(:b))
+@test texpr(:(a[i:j] = sin(x))) == TAssignment(texpr(:(a[i:j])), texpr(:(sin(x))))
+
+# TBlock
+@test texpr(:(a = 1; b[1]; sin(x))) == TBlockExpr(TExpr[texpr(:(a = 1)), texpr(:(b[1])), texpr(:(sin(x)))])
