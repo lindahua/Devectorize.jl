@@ -7,102 +7,104 @@
 #################################################
 
 abstract TExpr
-isscalar(te::TExpr) = false
-asscalar(te::TExpr) = te
+rtype(te::TExpr) = te.rtype
+isscalar(te::TExpr) = (te.rtype <: Number)
 
 # generic expression
 immutable TGenericExpr <: TExpr
     intern::Expr
-    isscalar::Bool
+    rtype::Type
 end
-TGenericExpr(x::Expr; isscalar::Bool=false) = TGenericExpr(x, isscalar)
-isscalar(te::TGenericExpr) = te.isscalar
-asscalar(te::TGenericExpr) = TGenericExpr(te.intern, true)
+TGenericExpr(x::Expr) = TGenericExpr(x, Any)
+cast(te::TGenericExpr, t::Type) = TGenericExpr(te.intern, t)
 
 # a number literal
 immutable TNum <: TExpr
     value::Number
 end
-isscalar(te::TNum) = true
+rtype(te::TNum) = typeof(te.value)
+cast(te::TNum, t::Type) = (isa(value, t) || error("Devectorize: Invalid type assertion of a number."))
 
 # a variable (can be either an array or a scalar)
 immutable TVar <: TExpr
     name::Symbol
-    isscalar::Bool
+    rtype::Type
 end
-TVar(s::Symbol; isscalar::Bool=false) = TVar(s, isscalar)
-isscalar(te::TVar) = te.isscalar
-asscalar(te::TVar) = TVar(te.name, true)
+TVar(s::Symbol) = TVar(s, Any)
+cast(te::TVar, t::Type) = TVar(te.name, t)
 
 # generic function call
 immutable TGenericCall <: TExpr
     fun::Symbol
     args::Vector{TExpr}
-    isscalar::Bool
+    rtype::Type
 end
-TGenericCall(f::Symbol, args::Vector{TExpr}; isscalar::Bool=false) = TGenericCall(f, args, isscalar)
-isscalar(te::TGenericCall) = te.isscalar
-asscalar(te::TGenericCall) = TGenericCall(te.fun, te.args, true)
-== (x::TGenericCall, y::TGenericCall) = (x.fun == y.fun && x.args == y.args && x.isscalar == y.isscalar)
+TGenericCall(f::Symbol, args::Vector{TExpr}) = TGenericCall(f, args, Any)
+cast(te::TGenericCall, t::Type) = TGenericCall(te.fun, te.args, t)
+== (x::TGenericCall, y::TGenericCall) = (x.fun == y.fun && x.args == y.args && x.rtype == y.rtype)
 
 # a function call for element-wise mapping
 immutable TMap <: TExpr
     fun::Symbol
     args::Vector{TExpr}
-    isscalar::Bool
+    rtype::Type
 end
-TMap(f::Symbol, args::Vector{TExpr}; isscalar::Bool=false) = TMap(f, args, isscalar)
-isscalar(te::TMap) = te.isscalar
-asscalar(te::TMap) = TMap(te.fun, te.args, true)
-== (x::TMap, y::TMap) = (x.fun == y.fun && x.args == y.args && x.isscalar == y.isscalar)
+TMap(f::Symbol, args::Vector{TExpr}) = TMap(f, args, Any)
+cast(te::TMap, t::Type) = TMap(te.fun, te.args, t)
+== (x::TMap, y::TMap) = (x.fun == y.fun && x.args == y.args && x.rtype == y.rtype)
 
 # a function call for full reduction 
 immutable TReduc <: TExpr
     fun::Symbol
     arg::TExpr
+    rtype::Type
 end
-isscalar(te::TReduc) = true
+TReduc(f::Symbol, arg::TExpr) = TReduc(f, arg, Number)
+cast(te::TReduc, t::Type) = TReduc(te.fun, te.arg, t)
 
 # a function call for reduction along a certain dimension
 immutable TReducDim <: TExpr
     fun::Symbol
     arg::TExpr
     dim::TExpr
+    rtype::Type
 end
-isscalar(te::TReducDim) = false
-asscalar(te::TReducDim) = error("Reduction along dimension cannot be casted as a scalar.")
+TReducDim(f::Symbol, arg::TExpr, dim::TExpr) = TReducDim(f, arg, dim, AbstractArray)
+cast(te::TReducDim, t::Type) = TReducDim(te.fun, te.arg, te.dim, t)
 
 # reference
 
 immutable TColon <: TExpr
-
+    args::Vector{TExpr}
+    rtype::Type
 end
+TColon() = TColon(TExpr[], Colon)
+TColon(args::Vector{TExpr}) = TColon(args, Range)
+cast(te::TColon, t::Type) = TColon(te.args, t)
+== (x::TColon, y::TColon) = (x.args == y.args && x.rtype == y.rtype)
 
 immutable TRef <: TExpr
     parent::TExpr
     args::Vector{TExpr}
-    isscalar::Bool
+    rtype::Type
 end
-TRef(parent::TExpr, args::Vector{TExpr}; isscalar::Bool=false) = TRef(parent, args, isscalar)
-isscalar(te::TRef) = te.isscalar
-asscalar(te::TRef) = TRef(te.parent, te.args, true)
-== (x::TRef, y::TRef) = (x.parent == y.parent && x.args == y.args && x.isscalar == y.isscalar)
+TRef(parent::TExpr, args::Vector{TExpr}) = TRef(parent, args, Any)
+cast(te::TRef, t::Type) = TRef(te.parent, te.args, t)
+== (x::TRef, y::TRef) = (x.parent == y.parent && x.args == y.args && x.rtype == y.rtype)
 
 # assignment
 immutable TAssignment <: TExpr
     lhs::TExpr
     rhs::TExpr
-    isscalar::Bool
 end
-TAssignment(lhs::TExpr, rhs::TExpr; isscalar::Bool=false) = TAssignment(lhs, rhs, isscalar)
-isscalar(te::TAssignment) = te.isscalar
-asscalar(te::TAssignment) = TAssignment(te.lhs, te.rhs, true)
+rtype(te::TAssignment) = rtype(te.rhs)
 
 # block
 immutable TBlockExpr <: TExpr
     exprs::Vector{TExpr}
 end
-asscalar(te::TBlockExpr) = error("Block expression cannot be casted as a scalar.")
+rtype(te::TBlockExpr) = error("Taking rtype of a block expression is not supported.")
+
 
 #################################################
 #
@@ -117,34 +119,29 @@ function texpr(x::Expr)
     h = x.head
     if h == :call
         f = x.args[1]::Symbol
-        if f == :scalar
-            @assert length(x.args) == 2
-            return asscalar(texpr(x.args[2]))
-        else
-            targs = TExpr[texpr(a) for a in x.args[2:end]]
-            if isewisefun(f)
-                if all(a->isa(a, TNum), targs)  # constant propagation
+        targs = TExpr[texpr(a) for a in x.args[2:end]]
+        if isewisefun(f)
+            if all(a->isa(a, TNum), targs)  # constant propagation
+                return TNum(eval(x))
+            else
+                return TMap(f, targs; isscalar=all(isscalar, targs))
+            end
+        elseif isreducfun(f)
+            nargs = length(targs)
+            if nargs == 1
+                a = targs[1]
+                if isa(a, TNum)     # constant propagation
                     return TNum(eval(x))
                 else
-                    return TMap(f, targs; isscalar=all(isscalar, targs))
+                    return TReduc(f, targs[1])
                 end
-            elseif isreducfun(f)
-                nargs = length(targs)
-                if nargs == 1
-                    a = targs[1]
-                    if isa(a, TNum)     # constant propagation
-                        return TNum(eval(x))
-                    else
-                        return TReduc(f, targs[1])
-                    end
-                elseif nargs == 2
-                    return TReducDim(f, targs[1], targs[2])
-                else
-                    error("Devectorize: unsupported reduction with more than two arguments.")
-                end
+            elseif nargs == 2
+                return TReducDim(f, targs[1], targs[2])
             else
-                return TGenericCall(f, targs)
+                error("Devectorize: unsupported reduction with more than two arguments.")
             end
+        else
+            return TGenericCall(f, targs)
         end
 
     elseif h == :ref
