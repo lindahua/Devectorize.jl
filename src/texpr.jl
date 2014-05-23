@@ -1,6 +1,5 @@
 # Typed expressions
 
-
 #################################################
 #
 #  TExpr and subtypes
@@ -44,6 +43,7 @@ end
 TGenericCall(f::Symbol, args::Vector{TExpr}; isscalar::Bool=false) = TGenericCall(f, args, isscalar)
 isscalar(te::TGenericCall) = te.isscalar
 asscalar(te::TGenericCall) = TGenericCall(te.fun, te.args, true)
+== (x::TGenericCall, y::TGenericCall) = (x.fun == y.fun && x.args == y.args && x.isscalar == y.isscalar)
 
 # a function call for element-wise mapping
 immutable TMap <: TExpr
@@ -54,6 +54,7 @@ end
 TMap(f::Symbol, args::Vector{TExpr}; isscalar::Bool=false) = TMap(f, args, isscalar)
 isscalar(te::TMap) = te.isscalar
 asscalar(te::TMap) = TMap(te.fun, te.args, true)
+== (x::TMap, y::TMap) = (x.fun == y.fun && x.args == y.args && x.isscalar == y.isscalar)
 
 # a function call for full reduction 
 immutable TReduc <: TExpr
@@ -72,6 +73,11 @@ isscalar(te::TReducDim) = false
 asscalar(te::TReducDim) = error("Reduction along dimension cannot be casted as a scalar.")
 
 # reference
+
+immutable TColon <: TExpr
+
+end
+
 immutable TRef <: TExpr
     parent::TExpr
     args::Vector{TExpr}
@@ -80,6 +86,7 @@ end
 TRef(parent::TExpr, args::Vector{TExpr}; isscalar::Bool=false) = TRef(parent, args, isscalar)
 isscalar(te::TRef) = te.isscalar
 asscalar(te::TRef) = TRef(te.parent, te.args, true)
+== (x::TRef, y::TRef) = (x.parent == y.parent && x.args == y.args && x.isscalar == y.isscalar)
 
 # assignment
 immutable TAssignment <: TExpr
@@ -124,9 +131,14 @@ function texpr(x::Expr)
             elseif isreducfun(f)
                 nargs = length(targs)
                 if nargs == 1
-                    return TReduc(f, targs[1])
+                    a = targs[1]
+                    if isa(a, TNum)     # constant propagation
+                        return TNum(eval(x))
+                    else
+                        return TReduc(f, targs[1])
+                    end
                 elseif nargs == 2
-                    return TReducDim(f, targs[2], targs[3])
+                    return TReducDim(f, targs[1], targs[2])
                 else
                     error("Devectorize: unsupported reduction with more than two arguments.")
                 end
@@ -153,6 +165,3 @@ function texpr(x::Expr)
         return TGenericExpr(x)
     end
 end
-
-
-
