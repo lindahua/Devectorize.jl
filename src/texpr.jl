@@ -10,20 +10,26 @@ abstract TExpr
 rtype(te::TExpr) = te.rtype
 isscalar(te::TExpr) = (te.rtype <: Number)
 
+function restrict_type(t0::Type, t1::Type) 
+    t = typeintersect(t0, t1)
+    t != None || error("Devectorize: type conflict.")
+    t
+end
+
 # generic expression
 immutable TGenericExpr <: TExpr
     intern::Expr
     rtype::Type
 end
 TGenericExpr(x::Expr) = TGenericExpr(x, Any)
-cast(te::TGenericExpr, t::Type) = TGenericExpr(te.intern, t)
+cast(te::TGenericExpr, t::Type) = TGenericExpr(te.intern, restrict_type(te.rtype, t))
 
 # a number literal
 immutable TNum <: TExpr
     value::Number
 end
 rtype(te::TNum) = typeof(te.value)
-cast(te::TNum, t::Type) = (isa(value, t) || error("Devectorize: Invalid type assertion of a number."))
+cast(te::TNum, t::Type) = (isa(value, t) || error("Devectorize: type conflict."))
 
 # a variable (can be either an array or a scalar)
 immutable TVar <: TExpr
@@ -31,7 +37,7 @@ immutable TVar <: TExpr
     rtype::Type
 end
 TVar(s::Symbol) = TVar(s, Any)
-cast(te::TVar, t::Type) = TVar(te.name, t)
+cast(te::TVar, t::Type) = TVar(te.name, restrict_type(te.rtype, t))
 
 # generic function call
 immutable TGenericCall <: TExpr
@@ -40,7 +46,7 @@ immutable TGenericCall <: TExpr
     rtype::Type
 end
 TGenericCall(f::Symbol, args::Vector{TExpr}) = TGenericCall(f, args, Any)
-cast(te::TGenericCall, t::Type) = TGenericCall(te.fun, te.args, t)
+cast(te::TGenericCall, t::Type) = TGenericCall(te.fun, te.args, restrict_type(te.rtype, t))
 == (x::TGenericCall, y::TGenericCall) = (x.fun == y.fun && x.args == y.args && x.rtype == y.rtype)
 
 # a function call for element-wise mapping
@@ -50,7 +56,7 @@ immutable TMap <: TExpr
     rtype::Type
 end
 TMap(f::Symbol, args::Vector{TExpr}) = TMap(f, args, Any)
-cast(te::TMap, t::Type) = TMap(te.fun, te.args, t)
+cast(te::TMap, t::Type) = TMap(te.fun, te.args, restrict_type(te.rtype, t))
 == (x::TMap, y::TMap) = (x.fun == y.fun && x.args == y.args && x.rtype == y.rtype)
 
 # a function call for full reduction 
@@ -60,7 +66,7 @@ immutable TReduc <: TExpr
     rtype::Type
 end
 TReduc(f::Symbol, arg::TExpr) = TReduc(f, arg, Number)
-cast(te::TReduc, t::Type) = TReduc(te.fun, te.arg, t)
+cast(te::TReduc, t::Type) = TReduc(te.fun, te.arg, restrict_type(te.rtype, t))
 
 # a function call for reduction along a certain dimension
 immutable TReducDim <: TExpr
@@ -70,7 +76,7 @@ immutable TReducDim <: TExpr
     rtype::Type
 end
 TReducDim(f::Symbol, arg::TExpr, dim::TExpr) = TReducDim(f, arg, dim, AbstractArray)
-cast(te::TReducDim, t::Type) = TReducDim(te.fun, te.arg, te.dim, t)
+cast(te::TReducDim, t::Type) = TReducDim(te.fun, te.arg, te.dim, restrict_type(te.rtype, t))
 
 # reference
 
@@ -80,7 +86,7 @@ immutable TColon <: TExpr
 end
 TColon() = TColon(TExpr[], Colon)
 TColon(args::Vector{TExpr}) = TColon(args, Range)
-cast(te::TColon, t::Type) = TColon(te.args, t)
+cast(te::TColon, t::Type) = TColon(te.args, restrict_type(te.rtype, t))
 == (x::TColon, y::TColon) = (x.args == y.args && x.rtype == y.rtype)
 
 immutable TRef <: TExpr
@@ -89,7 +95,7 @@ immutable TRef <: TExpr
     rtype::Type
 end
 TRef(parent::TExpr, args::Vector{TExpr}) = TRef(parent, args, Any)
-cast(te::TRef, t::Type) = TRef(te.parent, te.args, t)
+cast(te::TRef, t::Type) = TRef(te.parent, te.args, restrict_type(te.rtype, t))
 == (x::TRef, y::TRef) = (x.parent == y.parent && x.args == y.args && x.rtype == y.rtype)
 
 # assignment
