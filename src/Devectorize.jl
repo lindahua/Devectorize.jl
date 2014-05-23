@@ -11,8 +11,7 @@ module Internal
     TExpr, TNum, TVar, TRef, TMap, TReduc,
     TGenericExpr, TGenericCall, TReducDim, 
     TAssignment, TBlockExpr, 
-    texpr, isscalar, asscalar
-
+    texpr, rtype
 
     # source files
     include("funmeta.jl")

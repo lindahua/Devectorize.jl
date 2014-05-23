@@ -8,7 +8,6 @@
 
 abstract TExpr
 rtype(te::TExpr) = te.rtype
-isscalar(te::TExpr) = (te.rtype <: Number)
 
 function restrict_type(t0::Type, t1::Type) 
     t = typeintersect(t0, t1)
@@ -121,16 +120,43 @@ rtype(te::TBlockExpr) = error("Taking rtype of a block expression is not support
 texpr(x::Number) = TNum(x)
 texpr(x::Symbol) = TVar(x)
 
+function maprtype(rtypes::Vector{Type})
+    c = 0
+    for t in rtypes
+        if t <: Number
+            c = max(c, 0)
+        elseif t <: Array
+            c = max(c, 1)
+        elseif t <: DenseArray
+            c = max(c, 2)
+        elseif t <: AbstractArray
+            c = max(c, 3)
+        else
+            c = max(c, 100)
+        end
+    end
+    c == 0 ? Number : 
+    c == 1 ? Array :
+    c == 2 ? DenseArray :
+    c == 3 ? AbstractArray : Any
+end
+
 function texpr(x::Expr)
     h = x.head
-    if h == :call
+    if h == :(::)
+        @assert length(x.args) == 2
+        t = eval(x.args[2])
+        isa(t, Type) || error("Devectorize: The second argument to :: should be a type name.")
+        return cast(texpr(x.args[1]), t)
+
+    elseif h == :call
         f = x.args[1]::Symbol
         targs = TExpr[texpr(a) for a in x.args[2:end]]
         if isewisefun(f)
             if all(a->isa(a, TNum), targs)  # constant propagation
                 return TNum(eval(x))
             else
-                return TMap(f, targs; isscalar=all(isscalar, targs))
+                return TMap(f, targs, maprtype(Type[rtype(a) for a in targs]))
             end
         elseif isreducfun(f)
             nargs = length(targs)
