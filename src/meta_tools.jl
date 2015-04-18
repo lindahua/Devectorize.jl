@@ -77,14 +77,14 @@ end
 # helper for returning length
 
 to_length(s::Int) = s
-to_length(s::(Int,)) = s[1]
-to_length(s::(Int, Int)) = s[1] * s[2]
+to_length(s::Tuple{Int}) = s[1]
+to_length(s::Tuple{Int, Int}) = s[1] * s[2]
 
 # helper for returning 2D size
 
 to_size2d(s::Int) = (s, 1)
-to_size2d(s::(Int,)) = (s[1], 1)
-to_size2d(s::(Int, Int)) = s
+to_size2d(s::Tuple{Int}) = (s[1], 1)
+to_size2d(s::Tuple{Int, Int}) = s
 
 # length inference (from LHS)
 
@@ -184,18 +184,18 @@ end
 
 ewise_shape(s) = s
 
-ewise_shape(::(), ::()) = ()
-ewise_shape(::(), s) = s
-ewise_shape(s, ::()) = s
+ewise_shape(::Tuple{}, ::Tuple{}) = ()
+ewise_shape(::Tuple{}, s) = s
+ewise_shape(s, ::Tuple{}) = s
 ewise_shape(s1, s2) = promote_shape(s1, s2)
 
-ewise_shape(::(), ::(), ::()) = ()
-ewise_shape(s1, ::(), ::()) = s1
-ewise_shape(::(), s2, ::()) = s2
-ewise_shape(::(), ::(), s3) = s3
-ewise_shape(s1, s2, ::()) = promote_shape(s1, s2)
-ewise_shape(s1, ::(), s3) = promote_shape(s1, s3)
-ewise_shape(::(), s2, s3) = promote_shape(s2, s3)
+ewise_shape(::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
+ewise_shape(s1, ::Tuple{}, ::Tuple{}) = s1
+ewise_shape(::Tuple{}, s2, ::Tuple{}) = s2
+ewise_shape(::Tuple{}, ::Tuple{}, s3) = s3
+ewise_shape(s1, s2, ::Tuple{}) = promote_shape(s1, s2)
+ewise_shape(s1, ::Tuple{}, s3) = promote_shape(s1, s3)
+ewise_shape(::Tuple{}, s2, s3) = promote_shape(s2, s3)
 ewise_shape(s1, s2, s3) = promote_shape(promote_shape(s1, s2), s3)
 
 ewise_shape(s1, s2, s3, s4...) = promote_shape(ewise_shape(s1, s2), ewise_shape(s3, s4...))
