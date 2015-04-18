@@ -1,6 +1,7 @@
 
 using Devectorize
 using Base.Test
+using Compat
 
 #################################################
 #
@@ -9,9 +10,9 @@ using Base.Test
 #################################################
 
 n = 4
-d = {:x => rand(n),
+d = @compat Dict(:x => rand(n),
      :y => pi * [1:n],
-     :z => 1 / [1:n]}
+     :z => 1 ./ [1:n])
 
 @devec_transform d  xd = x .* y + z
 

@@ -2,6 +2,7 @@
 
 using Base.Test
 using Devectorize
+using Compat
 
 ###########################################################
 #
@@ -132,7 +133,7 @@ ex = texpr(:(a.b[2,3]))
 @test ex == tref(:(a.b[2,3]))
 @test eval(ju_expr(ex)) == a.b[2,3]
 
-a = {"s" => 100}
+a = @compat Dict("s" => 100)
 
 ex = texpr(:(a["s"]))
 @test isa(ex, TGeneralRef1)

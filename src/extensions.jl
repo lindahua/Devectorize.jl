@@ -36,10 +36,10 @@
 ##########################################################################
 
 
-# The following is like Base.has, but converts symbols to appropriate
+# The following is like Base.haskey, but converts symbols to appropriate
 # key types.
-xhas(d, key) = has(d, key)
-xhas{K<:String,V}(d::Associative{K,V}, key) = has(d, string(key))
+xhas(d, key) = haskey(d, key)
+xhas{K<:String,V}(d::Associative{K,V}, key) = haskey(d, string(key))
 
 # The appropriate key for the type
 bestkey(d, key) = key
@@ -47,7 +47,7 @@ bestkey{K<:String,V}(d::Associative{K,V}, key) = string(key)
 
 #### The following will be needed in package DataFrames for support
 #
-#   xhas(d::AbstractDataFrame, key::Symbol) = has(d, string(key))
+#   xhas(d::AbstractDataFrame, key::Symbol) = haskey(d, string(key))
 #   bestkey(d::AbstractDataFrame, key) = string(key)
 #   bestkey(d::NamedArray, key) = string(key)
 #
@@ -57,7 +57,7 @@ bestkey{K<:String,V}(d::Associative{K,V}, key) = string(key)
 replace_syms(x, lookup::Associative) = x
 
 function replace_syms(s::Symbol, lookup::Associative)
-    if has(lookup, s)
+    if haskey(lookup, s)
         lookup[s]
     else
         res = gensym("var")
