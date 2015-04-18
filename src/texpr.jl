@@ -164,7 +164,7 @@ end
 
 type TMap <: TEWise
     fun::Symbol
-    args::(TEWise...,)
+    args::@compat Tuple{Vararg{TEWise}}
     mode::TMode
     deps::Union(Array{TExpr}, Nothing)
 end
@@ -177,20 +177,20 @@ as_scalar(tx::TMap) = TGeneralScalar(ju_expr(tx))
 
 type TReduc <: TExpr
     fun::Symbol
-    args::(TEWise...,)
+    args::@compat Tuple{Vararg{TEWise}}
     arg_mode::TMode
     deps::Union(Array{TExpr}, Nothing)
 end
 
 type TColwiseReduc <: TExpr
     fun::Symbol
-    args::(TEWise...,)
+    args::@compat Tuple{Vararg{TEWise}}
     deps::Union(Array{TExpr}, Nothing)
 end
 
 type TRowwiseReduc <: TExpr
     fun::Symbol
-    args::(TEWise...,)
+    args::@compat Tuple{Vararg{TEWise}}
     deps::Union(Array{TExpr}, Nothing)
 end
 

@@ -1,5 +1,7 @@
 module Devectorize
 
+using Compat
+
 export
     # fun_traits
     TFun,
