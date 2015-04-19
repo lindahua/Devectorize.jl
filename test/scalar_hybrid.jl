@@ -16,7 +16,7 @@ abc = [a b c]
 at = a'
 bt = b'
 ct = c'
-abct = [at, bt, ct]
+abct = [at; bt; ct]
 
 # test cases
 

@@ -20,7 +20,7 @@ abc = [a b c]
 at = a'
 bt = b'
 ct = c'
-abct = [at, bt, ct]
+abct = [at; bt; ct]
 
 type X
     x
@@ -852,5 +852,3 @@ r = X(0)
 abcx = X(abc)
 @devec r.x = abcx.x[:,2]
 @test isequal(r.x, b)
-
-

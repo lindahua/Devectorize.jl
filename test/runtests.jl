@@ -1,9 +1,19 @@
-include("extensions.jl")
-include("scalar_ewise.jl")
-include("scalar_hybrid.jl")
-include("scalar_reduc.jl")
-include("scalar_ref.jl")
-include("scalar_special.jl")
-include("texpr.jl")
-include("tmode.jl")
+tests = ["texpr",
+         "tmode",
+         "scalar_ref",
+         "scalar_ewise",
+         "scalar_special",
+         "scalar_reduc",
+         "scalar_hybrid",
+         "extensions" ]
 
+# extensions
+
+println("Testing Devectorize.jl")
+println("---------------------------")
+
+for t in tests
+    fp = "$(t).jl"
+    println("* running $(fp) ...")
+    include(fp)
+end
