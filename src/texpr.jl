@@ -37,8 +37,8 @@ type TNum{T<:Number} <: TScalar
 end
 ju_expr(tx::TNum) = tx.val
 
-== (a::TNum, b::TNum) = (a.val == b.val)
-!= (a::TNum, b::TNum) = !(a == b)
+==(a::TNum, b::TNum) = (a.val == b.val)
+!=(a::TNum, b::TNum) = !(a == b)
 
 type TScalarVar <: TScalar
     name::Symbol
@@ -47,16 +47,16 @@ ju_expr(tx::TScalarVar) = tx.name
 
 scalar(x::Number) = x
 
-== (a::TScalarVar, b::TScalarVar) = (a.name == b.name)
-!= (a::TScalarVar, b::TScalarVar) = !(a == b)
+==(a::TScalarVar, b::TScalarVar) = (a.name == b.name)
+!=(a::TScalarVar, b::TScalarVar) = !(a == b)
 
 type TVar <: TGeneralVar
     name::Symbol
 end
 ju_expr(tx::TVar) = tx.name
 
-== (a::TVar, b::TVar) = (a.name == b.name)
-!= (a::TVar, b::TVar) = !(a == b)
+==(a::TVar, b::TVar) = (a.name == b.name)
+!=(a::TVar, b::TVar) = !(a == b)
 
 # qualified variable, e.g. abc.x
 type TQVar <: TGeneralVar
@@ -64,8 +64,8 @@ type TQVar <: TGeneralVar
 end
 ju_expr(tx::TQVar) = tx.form
 
-== (a::TQVar, b::TQVar) = (a.form == b.form)
-!= (a::TQVar, b::TQVar) = !(a == b)
+==(a::TQVar, b::TQVar) = (a.form == b.form)
+!=(a::TQVar, b::TQVar) = !(a == b)
 
 type TGeneralScalar <: TScalar
     form::Expr
@@ -91,8 +91,8 @@ type TInterval <: TRange
     last::Union(TIndex,Nothing)
 end
 
-== (a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
-!= (a::TInterval, b::TInterval) = !(a == b)
+==(a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
+!=(a::TInterval, b::TInterval) = !(a == b)
 
 # integer index
 type TScalarRef1 <: TGeneralVar # or TGeneralScalar??
@@ -101,8 +101,8 @@ type TScalarRef1 <: TGeneralVar # or TGeneralScalar??
 end
 ju_expr(tx::TScalarRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
 
-== (a::TScalarRef1, b::TScalarRef1) = (a.host == b.host) && (a.i == b.i)
-!= (a::TScalarRef1, b::TScalarRef1) = !(a == b)
+==(a::TScalarRef1, b::TScalarRef1) = (a.host == b.host) && (a.i == b.i)
+!=(a::TScalarRef1, b::TScalarRef1) = !(a == b)
 
 type TGeneralRef1 <: TRef
     host::TGeneralVar
@@ -111,8 +111,8 @@ end
 ju_expr(tx::TGeneralRef1) = :( $(ju_expr(tx.host))[$(tx.i)] )
 as_scalar(a::TGeneralRef1) = TGeneralScalar(ju_expr(a))
 
-== (a::TGeneralRef1, b::TGeneralRef1) = (a.host == b.host) && (a.i == b.i)
-!= (a::TGeneralRef1, b::TGeneralRef1) = !(a == b)
+==(a::TGeneralRef1, b::TGeneralRef1) = (a.host == b.host) && (a.i == b.i)
+!=(a::TGeneralRef1, b::TGeneralRef1) = !(a == b)
 
 type TGeneralRef2 <: TGeneralVar
     host::TGeneralVar
@@ -122,16 +122,16 @@ end
 ju_expr(tx::TGeneralRef2) = :( $(ju_expr(tx.host))[$(tx.i), $(tx.j)] )
 as_scalar(a::TGeneralRef2) = TGeneralScalar(ju_expr(a))
 
-== (a::TGeneralRef2, b::TGeneralRef2) = (a.host == b.host) && (a.i == b.i) && (a.j == b.j)
-!= (a::TGeneralRef2, b::TGeneralRef2) = !(a == b)
+==(a::TGeneralRef2, b::TGeneralRef2) = (a.host == b.host) && (a.i == b.i) && (a.j == b.j)
+!=(a::TGeneralRef2, b::TGeneralRef2) = !(a == b)
 
 type TRef1D <: TRef
     host::TGeneralVar
     rgn::TRange
 end
 
-== (a::TRef1D, b::TRef1D) = (a.host == b.host) && (a.rgn == b.rgn)
-!= (a::TRef1D, b::TRef1D) = !(a == b)
+==(a::TRef1D, b::TRef1D) = (a.host == b.host) && (a.rgn == b.rgn)
+!=(a::TRef1D, b::TRef1D) = !(a == b)
 
 type TRefCol <: TRef
     host::TGeneralVar
@@ -139,8 +139,8 @@ type TRefCol <: TRef
     icol::TIndex
 end
 
-== (a::TRefCol, b::TRefCol) = (a.host == b.host) && (a.rrgn == b.rrgn) && (a.icol == b.icol)
-!= (a::TRefCol, b::TRefCol) = !(a == b)
+==(a::TRefCol, b::TRefCol) = (a.host == b.host) && (a.rrgn == b.rrgn) && (a.icol == b.icol)
+!=(a::TRefCol, b::TRefCol) = !(a == b)
 
 type TRefRow <: TRef
     host::TGeneralVar
@@ -148,8 +148,8 @@ type TRefRow <: TRef
     crgn::TRange
 end
 
-== (a::TRefRow, b::TRefRow) = (a.host == b.host) && (a.irow == b.irow) && (a.crgn == b.crgn)
-!= (a::TRefRow, b::TRefRow) = !(a == b)
+==(a::TRefRow, b::TRefRow) = (a.host == b.host) && (a.irow == b.irow) && (a.crgn == b.crgn)
+!=(a::TRefRow, b::TRefRow) = !(a == b)
 
 type TRef2D <: TRef
     host::TGeneralVar
@@ -157,8 +157,8 @@ type TRef2D <: TRef
     crgn::TRange
 end
 
-== (a::TRef2D, b::TRef2D) = (a.host == b.host) && (a.rrgn == b.rrgn) && (a.crgn == b.crgn)
-!= (a::TRef2D, b::TRef2D) = !(a == b)
+==(a::TRef2D, b::TRef2D) = (a.host == b.host) && (a.rrgn == b.rrgn) && (a.crgn == b.crgn)
+!=(a::TRef2D, b::TRef2D) = !(a == b)
 
 # function calls
 
@@ -196,7 +196,7 @@ end
 
 typealias TFunCall Union(TMap, TReduc, TColwiseReduc, TRowwiseReduc)
 
-function == (a::TFunCall, b::TFunCall)
+function ==(a::TFunCall, b::TFunCall)
     na = length(a.args)
     if a.fun == b.fun && typeof(a) == typeof(b) && na == length(b.args)
         for i = 1 : na
@@ -209,7 +209,7 @@ function == (a::TFunCall, b::TFunCall)
     return false
 end
 
-!= (a::TFunCall, b::TFunCall) = !(a == b)
+!=(a::TFunCall, b::TFunCall) = !(a == b)
 
 # others
 
@@ -222,8 +222,8 @@ type TAssign{Lhs<:TLValue, Rhs<:TRValue} <: TExpr
     mode::TMode
 end
 
-== (a::TAssign, b::TAssign) = (a.lhs == b.lhs) && (a.rhs == b.rhs)
-!= (a::TAssign, b::TAssign) = !(a == b)
+==(a::TAssign, b::TAssign) = (a.lhs == b.lhs) && (a.rhs == b.rhs)
+!=(a::TAssign, b::TAssign) = !(a == b)
 
 is_trivial_assignment(ex::TAssign) = isa(ex.lhs, TGeneralVar) &&
     (isa(ex.rhs, TGeneralVar) || isa(ex.rhs, TNum))
@@ -233,8 +233,8 @@ type TBlock <: TExpr
     TBlock() = new(TAssign[])
 end
 
-== (a::TBlock, b::TBlock) = length(a.stmts) == length(b.stmts) && all(a.stmts .== b.stmts)
-!= (a::TBlock, b::TBlock) = !(a == b)
+==(a::TBlock, b::TBlock) = length(a.stmts) == length(b.stmts) && all(a.stmts .== b.stmts)
+!=(a::TBlock, b::TBlock) = !(a == b)
 
 
 ##########################################################################
