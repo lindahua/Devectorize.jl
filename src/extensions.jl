@@ -39,11 +39,11 @@
 # The following is like Base.haskey, but converts symbols to appropriate
 # key types.
 xhas(d, key) = haskey(d, key)
-xhas{K<:String,V}(d::Associative{K,V}, key) = haskey(d, string(key))
+xhas{K<:AbstractString,V}(d::Associative{K,V}, key) = haskey(d, string(key))
 
 # The appropriate key for the type
 bestkey(d, key) = key
-bestkey{K<:String,V}(d::Associative{K,V}, key) = string(key)
+bestkey{K<:AbstractString,V}(d::Associative{K,V}, key) = string(key)
 
 #### The following will be needed in package DataFrames for support
 #

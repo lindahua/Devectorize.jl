@@ -82,13 +82,13 @@ as_scalar(a::TExpr) = throw(DeError("Expression of type $(typeof(a)) can not be 
 
 abstract TRef <: TEWise
 
-typealias TIndex Union(Int,Symbol)
+@compat typealias TIndex Union{Int,Symbol}
 abstract TRange
 
 type TColon <: TRange end
-type TInterval <: TRange
+@compat type TInterval <: TRange
     first::TIndex
-    last::Union(TIndex,Nothing)
+    last::Union{TIndex,Void}
 end
 
 ==(a::TInterval, b::TInterval) = (a.first == b.first) && (a.last == b.last)
@@ -162,11 +162,11 @@ end
 
 # function calls
 
-type TMap <: TEWise
+@compat type TMap <: TEWise
     fun::Symbol
-    args::@compat Tuple{Vararg{TEWise}}
+    args::Tuple{Vararg{TEWise}}
     mode::TMode
-    deps::Union(Array{TExpr}, Nothing)
+    deps::Union{Array{TExpr},Void}
 end
 
 function ju_expr(tx::TMap)
@@ -175,26 +175,26 @@ function ju_expr(tx::TMap)
 end
 as_scalar(tx::TMap) = TGeneralScalar(ju_expr(tx))
 
-type TReduc <: TExpr
+@compat type TReduc <: TExpr
     fun::Symbol
-    args::@compat Tuple{Vararg{TEWise}}
+    args::Tuple{Vararg{TEWise}}
     arg_mode::TMode
-    deps::Union(Array{TExpr}, Nothing)
+    deps::Union{Array{TExpr},Void}
 end
 
-type TColwiseReduc <: TExpr
+@compat type TColwiseReduc <: TExpr
     fun::Symbol
-    args::@compat Tuple{Vararg{TEWise}}
-    deps::Union(Array{TExpr}, Nothing)
+    args::Tuple{Vararg{TEWise}}
+    deps::Union{Array{TExpr},Void}
 end
 
-type TRowwiseReduc <: TExpr
+@compat type TRowwiseReduc <: TExpr
     fun::Symbol
-    args::@compat Tuple{Vararg{TEWise}}
-    deps::Union(Array{TExpr}, Nothing)
+    args::Tuple{Vararg{TEWise}}
+    deps::Union{Array{TExpr},Void}
 end
 
-typealias TFunCall Union(TMap, TReduc, TColwiseReduc, TRowwiseReduc)
+@compat typealias TFunCall Union{TMap,TReduc,TColwiseReduc,TRowwiseReduc}
 
 function ==(a::TFunCall, b::TFunCall)
     na = length(a.args)
@@ -213,8 +213,8 @@ end
 
 # others
 
-typealias TRValue Union(TEWise, TFunCall)
-typealias TLValue Union(TGeneralVar, TRef)
+@compat typealias TRValue Union{TEWise,TFunCall}
+@compat typealias TLValue Union{TGeneralVar,TRef}
 
 type TAssign{Lhs<:TLValue, Rhs<:TRValue} <: TExpr
     lhs::Lhs
