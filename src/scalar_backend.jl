@@ -314,7 +314,7 @@ function setup_rhs(ctx::ScalarContext, ex::TRefRow)
     (init, siz, ty, final, info)
 end
 
-compose_rhs_kernel(ctx::ScalarContext, ex::Union(TRef1D, TRefCol, TRefRow), info,
+@compat compose_rhs_kernel(ctx::ScalarContext, ex::Union{TRef1D, TRefCol, TRefRow}, info,
     i::Symbol) = compose_lhs_kernel(ctx, ex, info, i)
 
 
@@ -555,7 +555,7 @@ end
 #
 ##########################################################################
 
-function setup_reduc(ctx::ScalarContext, r::Union(TReduc, TColwiseReduc, TRowwiseReduc),
+@compat function setup_reduc(ctx::ScalarContext, r::Union{TReduc, TColwiseReduc, TRowwiseReduc},
     ty::Symbol, siz::Symbol, s::Symbol, rlen::Symbol)
 
     init_args, infer_siz, infer_ty, final_args, args_info = setup_args(ctx, r.fun, r.args)
