@@ -146,8 +146,8 @@ result_type(::TFun{:|}, ::Type{Bool}, ::Type{Bool}) = Bool
 sqr(x::Number) = x * x
 sqr{T<:Number}(a::AbstractArray{T}) = a .* a
 
-rcp(x::FloatingPoint) = one(x) / x
-rcp{T<:FloatingPoint}(a::AbstractArray{T}) =  one(eltype(a)) ./ a
+rcp(x::AbstractFloat) = one(x) / x
+rcp{T<:AbstractFloat}(a::AbstractArray{T}) =  one(eltype(a)) ./ a
 
 for s in [
     :sqrt, :cbrt, :abs, :sqr, :rcp,

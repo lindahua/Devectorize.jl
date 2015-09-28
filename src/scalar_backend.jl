@@ -68,19 +68,19 @@ function setup_lhs(ctx::ScalarContext, ex::TVar)
     (nothing, nothing)
 end
 
-function length_getter(ctx::ScalarContext, lhs::TVar, info::Nothing)
+@compat function length_getter(ctx::ScalarContext, lhs::TVar, info::Void)
     fun_call(:length, lhs.name)
 end
 
-function size2d_getter(ctx::ScalarContext, lhs::TVar, info::Nothing)
+@compat function size2d_getter(ctx::ScalarContext, lhs::TVar, info::Void)
     fun_call(qname(:to_size2d), fun_call(:size, lhs.name))
 end
 
-function compose_lhs_kernel(ctx::ScalarContext, ex::TVar, info::Nothing, i::Symbol)
+@compat function compose_lhs_kernel(ctx::ScalarContext, ex::TVar, info::Void, i::Symbol)
     :( $(ex.name)[$i] )
 end
 
-function compose_lhs_kernel(ctx::ScalarContext, ex::TVar, info::Nothing, i::Symbol, j::Symbol)
+@compat function compose_lhs_kernel(ctx::ScalarContext, ex::TVar, info::Void, i::Symbol, j::Symbol)
     :( $(ex.name)[$i, $j] )
 end
 
@@ -201,11 +201,11 @@ function setup_rhs(ctx::ScalarContext, ex::TNum)
     (init, siz, ty, final, info)
 end
 
-function compose_rhs_kernel(ctx::ScalarContext, ex::TNum, info::Nothing, i::Symbol)
+@compat function compose_rhs_kernel(ctx::ScalarContext, ex::TNum, info::Void, i::Symbol)
     ex.val
 end
 
-function compose_rhs_kernel(ctx::ScalarContext, ex::TNum, info::Nothing, i::Symbol, j::Symbol)
+@compat function compose_rhs_kernel(ctx::ScalarContext, ex::TNum, info::Void, i::Symbol, j::Symbol)
     ex.val
 end
 
@@ -220,11 +220,11 @@ function setup_rhs(ctx::ScalarContext, ex::TVar)
     (init, siz, ty, final, info)
 end
 
-function compose_rhs_kernel(ctx::ScalarContext, ex::TVar, info::Nothing, i::Symbol)
+@compat function compose_rhs_kernel(ctx::ScalarContext, ex::TVar, info::Void, i::Symbol)
     fun_call(qname(:get_value), ex.name, i)
 end
 
-function compose_rhs_kernel(ctx::ScalarContext, ex::TVar, info::Nothing, i::Symbol, j::Symbol)
+@compat function compose_rhs_kernel(ctx::ScalarContext, ex::TVar, info::Void, i::Symbol, j::Symbol)
     fun_call(qname(:get_value), ex.name, i, j)
 end
 
@@ -239,11 +239,11 @@ function setup_rhs(ctx::ScalarContext, ex::TScalarVar)
     (init, siz, ty, final, info)
 end
 
-function compose_rhs_kernel(ctx::ScalarContext, ex::TScalarVar, info::Nothing, i::Symbol)
+@compat function compose_rhs_kernel(ctx::ScalarContext, ex::TScalarVar, info::Void, i::Symbol)
     ex.name
 end
 
-function compose_rhs_kernel(ctx::ScalarContext, ex::TScalarVar, info::Nothing, i::Symbol, j::Symbol)
+@compat function compose_rhs_kernel(ctx::ScalarContext, ex::TScalarVar, info::Void, i::Symbol, j::Symbol)
     ex.name
 end
 
@@ -314,7 +314,7 @@ function setup_rhs(ctx::ScalarContext, ex::TRefRow)
     (init, siz, ty, final, info)
 end
 
-compose_rhs_kernel(ctx::ScalarContext, ex::Union(TRef1D, TRefCol, TRefRow), info,
+@compat compose_rhs_kernel(ctx::ScalarContext, ex::Union{TRef1D, TRefCol, TRefRow}, info,
     i::Symbol) = compose_lhs_kernel(ctx, ex, info, i)
 
 
@@ -555,7 +555,7 @@ end
 #
 ##########################################################################
 
-function setup_reduc(ctx::ScalarContext, r::Union(TReduc, TColwiseReduc, TRowwiseReduc),
+@compat function setup_reduc(ctx::ScalarContext, r::Union{TReduc, TColwiseReduc, TRowwiseReduc},
     ty::Symbol, siz::Symbol, s::Symbol, rlen::Symbol)
 
     init_args, infer_siz, infer_ty, final_args, args_info = setup_args(ctx, r.fun, r.args)
