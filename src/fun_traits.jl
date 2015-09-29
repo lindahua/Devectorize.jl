@@ -151,7 +151,7 @@ rcp{T<:AbstractFloat}(a::AbstractArray{T}) =  one(eltype(a)) ./ a
 
 for s in [
     :sqrt, :cbrt, :abs, :sqr, :rcp,
-    :floor, :ceil, :round, :trunc,
+    :floor, :ceil, :round, :trunc, :sign,
     :exp, :log, :log10, :exp2, :log2, :expm1, :log1p,
     :sin, :cos, :tan, :asin, :acos, :atan,
     :sinh, :cosh, :tanh, :asinh, :acosh, :atanh,
