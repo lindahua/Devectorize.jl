@@ -313,7 +313,7 @@ function is_valid_tqvar(ex::Expr)
 
     (isa(a1, Symbol) || is_valid_tqvar(a1)) &&
     (   isa(a2, QuoteNode) ||
-        (a2.head == (:quote) && isa(a2.args[1], Symbol))
+        (a2.head ==(:quote) && isa(a2.args[1], Symbol))
     )
 end
 
@@ -437,7 +437,7 @@ end
 # we here hand-coded the specific form to be recognized as partial reduction
 
 function recognize_partial_reduction(f::Symbol, a::TExpr...)
-    if f == (:sum) || f == (:mean) || f == (:maximum) || f == (:minimum)
+    if f ==(:sum) || f ==(:mean) || f ==(:maximum) || f ==(:minimum)
         if length(a) == 2 && isa(a[2], TNum{Int})
             fargs, deps = check_funcall_args(a[1])
             dim = a[2].val
@@ -456,7 +456,7 @@ end
 function tcall(f::Symbol, args)
     n = length(args)
 
-    if f == (:scalar) && n == 1
+    if f ==(:scalar) && n == 1
         as_scalar(args[1])
 
     elseif is_ewise_call(f, n)
@@ -580,7 +580,7 @@ function tblock(blk_ex::Expr)
 
     blk = TBlock()
     for e in blk_ex.args
-        if isa(e, LineNumberNode) || e.head == (:line)
+        if isa(e, LineNumberNode) || e.head ==(:line)
             continue
         end
         if !(e.head == :(=) || is_opassign(e.head))
